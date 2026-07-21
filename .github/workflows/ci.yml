@@ -66,8 +66,18 @@ jobs:
           cache: npm
       - name: Install deps
         run: npm install
-      - name: Capture diagnostics
+      - name: Format candidate and capture diagnostics
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/modules/referenceScanner.ts')
+          text = path.read_text()
+          text = text.replace('body.ownerDocument.createElement("p")', 'body.ownerDocument!.createElement("p")')
+          text = text.replace('const document = body.ownerDocument;', 'const document = body.ownerDocument!;')
+          path.write_text(text)
+          PY
+          npx prettier --write src/modules/referenceScanner.ts
+          cp src/modules/referenceScanner.ts formatted-referenceScanner.ts
           npm run lint:check > lint-diagnostics.txt 2>&1 || true
           npm run build > build-diagnostics.txt 2>&1 || true
       - name: Upload diagnostics
@@ -77,6 +87,7 @@ jobs:
           path: |
             lint-diagnostics.txt
             build-diagnostics.txt
+            formatted-referenceScanner.ts
 
   zotero-runtime:
     runs-on: ubuntu-latest
