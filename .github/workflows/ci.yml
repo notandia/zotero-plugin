@@ -10,27 +10,6 @@ on:
       - main
 
 jobs:
-  download-probe:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Probe official Zotero download
-        shell: bash
-        run: |
-          set +e
-          curl --silent --show-error --location \
-            --dump-header headers.txt \
-            --write-out 'curl_status=%{exitcode}\nhttp_status=%{http_code}\neffective_url=%{url_effective}\nbytes=%{size_download}\ncontent_type=%{content_type}\n' \
-            "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6" \
-            --output zotero-download
-          CURL_STATUS=$?
-          echo '--- response headers ---'
-          tail -n 30 headers.txt
-          echo '--- downloaded file ---'
-          ls -l zotero-download 2>/dev/null || true
-          file zotero-download 2>/dev/null || true
-          tar -tjf zotero-download 2>&1 | head -n 10 || true
-          exit "$CURL_STATUS"
-
   lint:
     runs-on: ubuntu-latest
     env:
@@ -116,9 +95,9 @@ jobs:
         run: |
           curl --fail --location --retry 3 \
             "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6" \
-            --output zotero.tar.bz2
+            --output zotero.tar.xz
           mkdir zotero-runtime
-          tar -xjf zotero.tar.bz2 -C zotero-runtime
+          tar -xJf zotero.tar.xz -C zotero-runtime
           ZOTERO_BIN="$(find "$GITHUB_WORKSPACE/zotero-runtime" -type f -name zotero -perm -u+x | head -n 1)"
           test -n "$ZOTERO_BIN"
           echo "ZOTERO_PLUGIN_ZOTERO_BIN_PATH=$ZOTERO_BIN" >> "$GITHUB_ENV"
