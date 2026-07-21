@@ -319,7 +319,7 @@ function citationGroupAround(xref: Element): CitationMarker {
     let ownStart = 0;
     for (const sibling of Array.from(parent.childNodes)) {
       if (sibling === xref) break;
-      ownStart += String(sibling.textContent || "").length;
+      ownStart += String(sibling?.textContent || "").length;
     }
     const ownEnd = ownStart + String(xref.textContent || "").length;
     const groupPattern =
