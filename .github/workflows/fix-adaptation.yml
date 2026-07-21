@@ -1,0 +1,45 @@
+name: Final adaptation fix
+
+on:
+  push:
+    branches:
+      - feat/working-mdpi-filter
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/working-mdpi-filter
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/modules/mdpiFilter.ts')
+          text = path.read_text()
+          old = 'const matches = value.match(/https?:\\/\\/[^\\s<>"\']+/gi) || [];'
+          new = 'const matches: string[] = value.match(/https?:\\/\\/[^\\s<>"\']+/gi) ?? [];'
+          if old not in text:
+              raise SystemExit('target line not found')
+          path.write_text(text.replace(old, new))
+          PY
+          npx prettier --write src/modules/mdpiFilter.ts test/mdpiFilter.spec.ts
+          npm run lint:check
+          npm run build
+          git rm .github/workflows/fix-adaptation.yml
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/mdpiFilter.ts test/mdpiFilter.spec.ts .github/workflows/fix-adaptation.yml
+          git commit -m "fix: satisfy TypeScript and lint checks"
+          git push origin HEAD:feat/working-mdpi-filter
