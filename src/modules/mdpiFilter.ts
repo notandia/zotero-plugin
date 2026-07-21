@@ -220,11 +220,7 @@ export function registerMDPINotifier(): void {
   }
 
   const observer = {
-    notify: (
-      event: string,
-      type: string,
-      ids: Array<string | number>,
-    ) => {
+    notify: (event: string, type: string, ids: Array<string | number>) => {
       if (
         addon.data.alive &&
         type === "item" &&
