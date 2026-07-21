@@ -79,18 +79,24 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libgtk-3-0 libdbus-glib-1-2 libxt6 libx11-xcb1 libasound2t64
+          sudo apt-get install -y \
+            xvfb \
+            libgtk-3-0 \
+            libdbus-glib-1-2 \
+            libxt6 \
+            libx11-xcb1 \
+            libasound2t64
 
       - name: Install npm dependencies
         run: npm install
 
-      - name: Download Zotero release
+      - name: Download Zotero 9.0.6
         run: |
           curl --fail --location --retry 3 \
-            "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64" \
+            "https://download.zotero.org/client/release/9.0.6/Zotero-9.0.6_linux-x86_64.tar.bz2" \
             --output zotero.tar.bz2
           tar -xjf zotero.tar.bz2
-          ZOTERO_DIR="$(find "$GITHUB_WORKSPACE" -maxdepth 1 -type d -name 'Zotero_linux-*' | head -n 1)"
+          ZOTERO_DIR="$GITHUB_WORKSPACE/Zotero_linux-x86_64"
           test -x "$ZOTERO_DIR/zotero"
           echo "ZOTERO_PLUGIN_ZOTERO_BIN_PATH=$ZOTERO_DIR/zotero" >> "$GITHUB_ENV"
           echo "ZOTERO_PLUGIN_PROFILE_PATH=$RUNNER_TEMP/zotero-profile" >> "$GITHUB_ENV"
