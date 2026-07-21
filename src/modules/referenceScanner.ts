@@ -4,8 +4,7 @@ const MDPI_DOI_PREFIX = "10.3390/";
 const MDPI_DOMAINS = ["mdpi.com", "mdpi.org"];
 const NCBI_ID_CONVERTER =
   "https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/";
-const NCBI_EFETCH =
-  "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
+const NCBI_EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 const NCBI_TIMEOUT_MS = 30000;
 const CONTEXT_RADIUS = 260;
 const READER_PANE_ID = `${config.addonRef}-reader-references`;
@@ -209,9 +208,7 @@ async function resolveNCBI(
   const normalized = Array.from(
     new Set(
       ids
-        .map((id) =>
-          idType === "pmcid" ? id.toUpperCase().trim() : id.trim(),
-        )
+        .map((id) => (idType === "pmcid" ? id.toUpperCase().trim() : id.trim()))
         .filter(Boolean),
     ),
   );
@@ -289,7 +286,9 @@ function referenceDOI(reference: Element): string | undefined {
   const structured = firstText(reference, selectors);
   if (structured) return cleanDOI(structured);
 
-  for (const link of Array.from(reference.querySelectorAll("ext-link, uri"))) {
+  for (const link of Array.from<Element>(
+    reference.querySelectorAll("ext-link, uri") as any,
+  )) {
     const candidate = `${link.textContent || ""} ${elementHref(link)}`;
     const match = candidate.match(/\b10\.\d{4,9}\/[^\s<>"']+/i);
     if (match) return cleanDOI(match[0]);
@@ -306,14 +305,8 @@ function referenceIdentifier(
 ): string | undefined {
   const selectors =
     type === "pmid"
-      ? [
-          "pub-id[pub-id-type='pmid']",
-          "article-id[pub-id-type='pmid']",
-        ]
-      : [
-          "pub-id[pub-id-type='pmcid']",
-          "article-id[pub-id-type='pmcid']",
-        ];
+      ? ["pub-id[pub-id-type='pmid']", "article-id[pub-id-type='pmid']"]
+      : ["pub-id[pub-id-type='pmcid']", "article-id[pub-id-type='pmcid']"];
   const value = firstText(reference, selectors);
   if (!value) return undefined;
   return type === "pmcid" ? value.toUpperCase() : value;
@@ -327,7 +320,7 @@ function citationGroupAround(xref: Element): CitationMarker {
   const ownStart = previous.length;
   const ownEnd = ownStart + String(xref.textContent || "").length;
   const groupPattern =
-    /[\[(]\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*[\])]/g;
+    /(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))/g;
   for (const found of combined.matchAll(groupPattern)) {
     const start = found.index || 0;
     const end = start + found[0].length;
@@ -337,7 +330,7 @@ function citationGroupAround(xref: Element): CitationMarker {
   }
 
   const directGroup = ownText.match(
-    /^[\[(]\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*[\])]$/,
+    /^(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))$/,
   );
   if (directGroup) {
     return { text: directGroup[0], safe: true };
@@ -351,8 +344,8 @@ function citationMarkersForReference(
   referenceId: string,
 ): CitationMarker[] {
   const markers = new Map<string, CitationMarker>();
-  for (const xref of Array.from(
-    document.querySelectorAll("xref[ref-type='bibr'][rid]"),
+  for (const xref of Array.from<Element>(
+    document.querySelectorAll("xref[ref-type='bibr'][rid]") as any,
   )) {
     const ids = String(xref.getAttribute("rid") || "")
       .trim()
@@ -379,8 +372,8 @@ function parsePMCReferenceCandidates(
   if (!document) return [];
 
   const candidates: StructuredReferenceCandidate[] = [];
-  for (const reference of Array.from(
-    document.querySelectorAll("ref-list ref[id]"),
+  for (const reference of Array.from<Element>(
+    document.querySelectorAll("ref-list ref[id]") as any,
   )) {
     const referenceId = reference.getAttribute("id") || "";
     if (!referenceId) continue;
@@ -388,7 +381,9 @@ function parsePMCReferenceCandidates(
     const pmid = referenceIdentifier(reference, "pmid");
     const pmcid = referenceIdentifier(reference, "pmcid");
     const rawText = normalizeWhitespace(reference.textContent || "");
-    const links = Array.from(reference.querySelectorAll("ext-link, uri"))
+    const links = Array.from<Element>(
+      reference.querySelectorAll("ext-link, uri") as any,
+    )
       .map((entry) => `${entry.textContent || ""} ${elementHref(entry)}`)
       .join(" ");
     candidates.push({
@@ -920,7 +915,10 @@ export function registerReferenceReaderSection(): void {
       return true;
     },
     onRender: ({ body, setSectionSummary }: any) => {
-      renderMessage(body, "Scanning structured PMC references and indexed text…");
+      renderMessage(
+        body,
+        "Scanning structured PMC references and indexed text…",
+      );
       setSectionSummary("Scanning…");
     },
     onAsyncRender: async ({ body, item, setSectionSummary }: any) => {

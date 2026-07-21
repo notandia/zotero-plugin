@@ -191,7 +191,10 @@ describe("MDPI Filter Zotero runtime", function () {
         </back>
       </article>`;
     const matches = await getPlugin().api.parsePMCReferenceXML(xml);
-    assert(matches.length === 1, "journal capitalization caused a false positive");
+    assert(
+      matches.length === 1,
+      "journal capitalization caused a false positive",
+    );
     assert(matches[0].referenceLabel === "124", "reference label was lost");
     assert(matches[0].doi === "10.3390/nu4091171", "structured DOI was lost");
     assert(
@@ -226,8 +229,7 @@ describe("MDPI Filter Zotero runtime", function () {
     assert(matches, "PMC EFetch returned no structured references");
     const reference = matches.find(
       (entry: any) =>
-        entry.referenceLabel === "124" &&
-        entry.doi === "10.3390/nu4091171",
+        entry.referenceLabel === "124" && entry.doi === "10.3390/nu4091171",
     );
     assert(
       reference,
@@ -299,9 +301,15 @@ describe("MDPI Filter Zotero runtime", function () {
       ],
       reader,
     );
-    assert(result.created === 2, "verified citation highlights were not created");
+    assert(
+      result.created === 2,
+      "verified citation highlights were not created",
+    );
     assert(result.skippedUnsafe === 1, "ambiguous bare marker was not skipped");
-    assert(created.length === 2, "an unrelated occurrence of 124 was highlighted");
+    assert(
+      created.length === 2,
+      "an unrelated occurrence of 124 was highlighted",
+    );
     assert(
       created.every((annotation) => annotation.color === "#e2211c"),
       "citation highlights did not use MDPI red",
