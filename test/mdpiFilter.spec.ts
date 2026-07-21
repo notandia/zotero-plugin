@@ -61,6 +61,7 @@ describe("MDPI Filter Zotero runtime", function () {
     assert(plugin, "plugin instance was not created");
     assert(plugin.data.initialized, "plugin did not finish startup");
     assert(plugin.api.isMDPIItem, "plugin API was not exposed");
+    assert(plugin.api.detectMDPIItem, "async detection API was not exposed");
 
     const win = Zotero.getMainWindow();
     assert(win, "Zotero main window is unavailable");
@@ -70,8 +71,8 @@ describe("MDPI Filter Zotero runtime", function () {
     );
   });
 
-  it("detects DOI, genuine MDPI hosts, and publisher metadata", function () {
-    const { isMDPIItem } = getPlugin().api;
+  it("adapts Chrome DOI, domain, journal, publisher, and NCBI checks", async function () {
+    const { detectMDPIItem, isMDPIItem } = getPlugin().api;
 
     const doiItem = new Zotero.Item("journalArticle");
     doiItem.setField("DOI", "10.3390/ijerph20031681");
@@ -81,6 +82,10 @@ describe("MDPI Filter Zotero runtime", function () {
     hostItem.setField("url", "https://www.mdpi.com/1660-4601/20/3/1681");
     assert(isMDPIItem(hostItem), "mdpi.com URL was not detected");
 
+    const orgItem = new Zotero.Item("journalArticle");
+    orgItem.setField("url", "https://www.mdpi.org/about");
+    assert(isMDPIItem(orgItem), "mdpi.org URL was not detected");
+
     const subdomainItem = new Zotero.Item("journalArticle");
     subdomainItem.setField("url", "https://susy.mdpi.com/user/manuscripts");
     assert(isMDPIItem(subdomainItem), "MDPI subdomain was not detected");
@@ -88,6 +93,33 @@ describe("MDPI Filter Zotero runtime", function () {
     const publisherItem = new Zotero.Item("journalArticle");
     publisherItem.setField("publisher", "MDPI");
     assert(isMDPIItem(publisherItem), "MDPI publisher was not detected");
+
+    const journalItem = new Zotero.Item("journalArticle");
+    journalItem.setField("publicationTitle", "International Journal of Molecular Sciences");
+    assert(isMDPIItem(journalItem), "known MDPI journal was not detected");
+
+    const originalRequest = Zotero.HTTP.request;
+    try {
+      Zotero.HTTP.request = async () => ({
+        response: {
+          records: [
+            {
+              pmid: "99999991",
+              pmcid: "PMC99999991",
+              doi: "10.3390/mock-ncbi-result",
+            },
+          ],
+        },
+      });
+      const ncbiItem = new Zotero.Item("journalArticle");
+      ncbiItem.setField("extra", "PMID: 99999991");
+      assert(
+        await detectMDPIItem(ncbiItem),
+        "NCBI PMID-to-MDPI resolution failed",
+      );
+    } finally {
+      Zotero.HTTP.request = originalRequest;
+    }
   });
 
   it("rejects lookalike and embedded MDPI hostnames", function () {
