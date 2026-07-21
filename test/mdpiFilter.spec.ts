@@ -1,5 +1,4 @@
-/* eslint-disable no-undef */
-// @ts-nocheck
+// @ts-nocheck -- This file runs inside Zotero's embedded Mocha runtime.
 
 const createdItemIDs: number[] = [];
 
