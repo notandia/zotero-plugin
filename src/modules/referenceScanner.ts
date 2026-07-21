@@ -493,7 +493,7 @@ export async function fetchPMCReferenceMatches(
   const promise = (async () => {
     const url = new URL(NCBI_EFETCH);
     url.searchParams.set("db", "pmc");
-    url.searchParams.set("id", normalized);
+    url.searchParams.set("id", normalized.replace(/^PMC/i, ""));
     url.searchParams.set("retmode", "xml");
     url.searchParams.set("tool", "MDPIFilterZotero");
     try {
