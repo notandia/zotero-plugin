@@ -31,7 +31,22 @@ function containsMDPIDOI(value: string): boolean {
 }
 
 function containsMDPIURL(value: string): boolean {
-  return /(?:^|[/.])mdpi\.com(?:[/:?#]|$)/i.test(value);
+  const candidate = value.trim();
+  if (!candidate) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(
+      /^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)
+        ? candidate
+        : `https://${candidate}`,
+    );
+    const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
+    return hostname === "mdpi.com" || hostname.endsWith(".mdpi.com");
+  } catch (_error) {
+    return false;
+  }
 }
 
 function containsMDPIPublisher(value: string): boolean {
@@ -135,12 +150,25 @@ export async function scanLibrary(libraryID: number): Promise<ScanResult> {
 }
 
 export async function registerMDPIColumn(): Promise<void> {
-  await Zotero.ItemTreeManager.registerColumns({
+  const manager = Zotero.ItemTreeManager as any;
+  const options = {
     pluginID: config.addonID,
     dataKey: COLUMN_DATA_KEY,
     label: "MDPI",
     dataProvider: (item: Zotero.Item) => (isMDPIItem(item) ? "MDPI" : ""),
-  });
+  };
+
+  if (typeof manager.registerColumn === "function") {
+    await manager.registerColumn(options);
+    return;
+  }
+
+  if (typeof manager.registerColumns === "function") {
+    await manager.registerColumns(options);
+    return;
+  }
+
+  throw new Error("Zotero ItemTreeManager column registration API is unavailable");
 }
 
 async function drainNotifierQueue(): Promise<void> {
