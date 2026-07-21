@@ -2,19 +2,16 @@ name: Release
 
 on:
   push:
-    tags:
-      - v**
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,24 +21,32 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: npm
 
-      - name: Install deps
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Build
+      - name: Validate and build
         run: |
+          npm run lint:check
           npm run build
 
-      - name: Release to GitHub
+      - name: Publish XPI release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          npm run release
-          sleep 1s
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
+          test -n "$XPI"
+          ASSET="mdpi-filter-zotero-${TAG}.xpi"
 
-      - name: Notify release
-        uses: apexskier/github-release-commenter@v1
-        continue-on-error: true
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          comment-template: |
-            :rocket: _This ticket has been resolved in {release_tag}. See {release_link} for release notes._
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$XPI#$ASSET" --clobber
+          else
+            gh release create "$TAG" "$XPI#$ASSET" \
+              --target "$GITHUB_SHA" \
+              --title "MDPI Filter for Zotero ${TAG}" \
+              --generate-notes
+          fi
