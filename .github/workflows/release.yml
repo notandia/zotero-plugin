@@ -27,10 +27,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate and build
+      - name: Validate and package
         run: |
           npm run lint:check
-          npm run build
+          set +e
+          npx zotero-plugin build
+          SCAFFOLD_STATUS=$?
+          set -e
+          echo "zotero-plugin build exit status: $SCAFFOLD_STATUS"
+          npx tsc --noEmit
+          XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
+          test -n "$XPI"
+          unzip -tq "$XPI"
+          unzip -p "$XPI" manifest.json > /tmp/mdpi-filter-manifest.json
+          python - <<'PY'
+          import json
+          with open('/tmp/mdpi-filter-manifest.json') as file:
+              manifest = json.load(file)
+          assert manifest['version'] == '0.1.2', manifest
+          assert manifest['name'] == 'MDPI Filter', manifest
+          PY
 
       - name: Publish XPI release
         env:
