@@ -168,7 +168,9 @@ export async function registerMDPIColumn(): Promise<void> {
     return;
   }
 
-  throw new Error("Zotero ItemTreeManager column registration API is unavailable");
+  throw new Error(
+    "Zotero ItemTreeManager column registration API is unavailable",
+  );
 }
 
 async function drainNotifierQueue(): Promise<void> {
