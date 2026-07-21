@@ -28,18 +28,16 @@ jobs:
           from pathlib import Path
           path = Path('src/modules/referenceScanner.ts')
           text = path.read_text()
-          old_constant = '''const NCBI_EFETCH =
-            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
-          '''
+          old_constant = 'const NCBI_EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";\n'
           if text.count(old_constant) != 1:
               raise SystemExit(f'expected one EFetch constant, found {text.count(old_constant)}')
           text = text.replace(old_constant, '')
-          old_request = '''const url = new URL(NCBI_EFETCH);
+          old_request = '''    const url = new URL(NCBI_EFETCH);
               url.searchParams.set("db", "pmc");
               url.searchParams.set("id", normalized.replace(/^PMC/i, ""));
               url.searchParams.set("retmode", "xml");
               url.searchParams.set("tool", "MDPIFilterZotero");'''
-          new_request = '''const url = new URL(
+          new_request = '''    const url = new URL(
                 `https://www.ebi.ac.uk/europepmc/webservices/rest/${normalized}/fullTextXML`,
               );'''
           if text.count(old_request) != 1:
