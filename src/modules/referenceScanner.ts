@@ -481,6 +481,128 @@ export function getItemPMCID(item: Zotero.Item): string | undefined {
   return undefined;
 }
 
+async function lookupPMCMetadata(
+  pmcid: string,
+): Promise<{ pmid?: string; doi?: string } | undefined> {
+  const url = new URL(NCBI_ID_CONVERTER);
+  url.searchParams.set("ids", pmcid);
+  url.searchParams.set("idtype", "pmcid");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("versions", "no");
+  url.searchParams.set("tool", "MDPIFilterZotero");
+  try {
+    const response = await (Zotero.HTTP as any).request("GET", url.toString(), {
+      anon: true,
+      errorDelayMax: 0,
+      responseType: "json",
+      successCodes: [200],
+      timeout: NCBI_TIMEOUT_MS,
+    });
+    const data =
+      response.response ||
+      (response.responseText ? JSON.parse(response.responseText) : undefined);
+    const record = Array.isArray(data?.records) ? data.records[0] : undefined;
+    if (!record) return undefined;
+    return {
+      pmid: record.pmid ? String(record.pmid) : undefined,
+      doi: record.doi ? cleanDOI(String(record.doi)) : undefined,
+    };
+  } catch (error) {
+    Zotero.logError(error instanceof Error ? error : new Error(String(error)));
+    return undefined;
+  }
+}
+
+function europePMCReferenceSnippet(reference: any): string {
+  return normalizeWhitespace(
+    [
+      reference?.authorString,
+      reference?.title,
+      reference?.journalTitle,
+      reference?.pubYear,
+      reference?.volume,
+      reference?.issue,
+      reference?.pageInfo,
+      reference?.doi ? `doi: ${reference.doi}` : "",
+    ]
+      .filter(Boolean)
+      .join(". "),
+  );
+}
+
+async function fetchOrderedEuropePMCReferences(
+  pmid: string,
+): Promise<MDPIReferenceMatch[] | undefined> {
+  const url = new URL(
+    `https://www.ebi.ac.uk/europepmc/webservices/rest/MED/${pmid}/references`,
+  );
+  url.searchParams.set("page", "1");
+  url.searchParams.set("pageSize", "1000");
+  url.searchParams.set("format", "json");
+  try {
+    const response = await (Zotero.HTTP as any).request("GET", url.toString(), {
+      anon: true,
+      errorDelayMax: 0,
+      responseType: "json",
+      successCodes: [200],
+      timeout: NCBI_TIMEOUT_MS,
+    });
+    const data =
+      response.response ||
+      (response.responseText ? JSON.parse(response.responseText) : undefined);
+    const references = Array.isArray(data?.referenceList?.reference)
+      ? data.referenceList.reference
+      : [];
+    if (!references.length) return undefined;
+
+    const unresolvedPMIDs = references
+      .filter(
+        (reference: any) =>
+          !containsMDPIDOI(String(reference?.doi || "")) &&
+          /^\d{1,20}$/.test(String(reference?.id || "")),
+      )
+      .map((reference: any) => String(reference.id));
+    const pmidResults = await resolveNCBI(unresolvedPMIDs, "pmid");
+
+    const matches: MDPIReferenceMatch[] = [];
+    references.forEach((reference: any, index: number) => {
+      const label = String(
+        reference?.refNum ||
+          reference?.referenceNumber ||
+          reference?.order ||
+          index + 1,
+      );
+      const doi = reference?.doi ? cleanDOI(String(reference.doi)) : undefined;
+      const pmid = /^\d{1,20}$/.test(String(reference?.id || ""))
+        ? String(reference.id)
+        : undefined;
+      if (
+        !containsMDPIDOI(doi || "") &&
+        !(pmid && pmidResults.get(pmid) === true)
+      ) {
+        return;
+      }
+      matches.push({
+        key: `europe-pmc-ref:${label}:${doi || pmid || index}`,
+        doi,
+        pmid,
+        referenceId: `EP${label}`,
+        referenceLabel: label,
+        citationMarkers: [
+          { text: `[${label}]`, safe: true },
+          { text: `(${label})`, safe: true },
+        ],
+        snippet: europePMCReferenceSnippet(reference),
+        source: "pmc-jats",
+      });
+    });
+    return matches;
+  } catch (error) {
+    Zotero.logError(error instanceof Error ? error : new Error(String(error)));
+    return undefined;
+  }
+}
+
 export async function fetchPMCReferenceMatches(
   pmcid: string,
 ): Promise<MDPIReferenceMatch[] | undefined> {
@@ -490,30 +612,35 @@ export async function fetchPMCReferenceMatches(
   if (cached) return cached;
 
   const promise = (async () => {
-    const url = new URL(
+    const fullTextURL = new URL(
       `https://www.ebi.ac.uk/europepmc/webservices/rest/${normalized}/fullTextXML`,
     );
     try {
       const response = await (Zotero.HTTP as any).request(
         "GET",
-        url.toString(),
+        fullTextURL.toString(),
         {
           anon: true,
           errorDelayMax: 0,
           responseType: "text",
-          successCodes: [200],
+          successCodes: [200, 404],
           timeout: NCBI_TIMEOUT_MS,
         },
       );
       const xmlText = String(response.responseText || response.response || "");
-      if (!xmlText.trim()) return undefined;
-      return await parsePMCReferenceXML(xmlText);
+      if (xmlText.trim()) {
+        const structured = await parsePMCReferenceXML(xmlText);
+        if (structured.length) return structured;
+      }
     } catch (error) {
       Zotero.logError(
         error instanceof Error ? error : new Error(String(error)),
       );
-      return undefined;
     }
+
+    const metadata = await lookupPMCMetadata(normalized);
+    if (!metadata?.pmid) return undefined;
+    return fetchOrderedEuropePMCReferences(metadata.pmid);
   })();
   pmcReferenceCache.set(normalized, promise);
   return promise;
