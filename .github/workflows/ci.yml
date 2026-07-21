@@ -32,8 +32,8 @@ jobs:
           text = path.read_text()
 
           text, metadata_count = re.subn(
-              r'async function lookupPMCMetadata\(.*?\n\}\n\nfunction europePMCReferenceSnippet',
-              'function europePMCReferenceSnippet',
+              r'async function lookupPMCMetadata\(.*?\n\}\n\n(?=function europePMCReferenceSnippet)',
+              '',
               text,
               count=1,
               flags=re.S,
@@ -41,28 +41,27 @@ jobs:
           if metadata_count != 1:
               raise SystemExit(f'expected one metadata helper, found {metadata_count}')
 
-          old_signature = '''async function fetchOrderedEuropePMCReferences(
-            pmid: string,
-          ): Promise<MDPIReferenceMatch[] | undefined> {'''
-          new_signature = '''async function fetchOrderedEuropePMCReferences(
-            pmcid: string,
-          ): Promise<MDPIReferenceMatch[] | undefined> {'''
-          if text.count(old_signature) != 1:
-              raise SystemExit('ordered-reference signature mismatch')
-          text = text.replace(old_signature, new_signature)
+          text, signature_count = re.subn(
+              r'async function fetchOrderedEuropePMCReferences\(\n\s*pmid: string,',
+              'async function fetchOrderedEuropePMCReferences(\n  pmcid: string,',
+              text,
+              count=1,
+          )
+          if signature_count != 1:
+              raise SystemExit(f'expected one signature, found {signature_count}')
 
-          old_url = '''`https://www.ebi.ac.uk/europepmc/webservices/rest/MED/${pmid}/references`,'''
-          new_url = '''`https://www.ebi.ac.uk/europepmc/webservices/rest/PMC/${pmcid}/references`,'''
+          old_url = '`https://www.ebi.ac.uk/europepmc/webservices/rest/MED/${pmid}/references`'
+          new_url = '`https://www.ebi.ac.uk/europepmc/webservices/rest/PMC/${pmcid}/references`'
           if text.count(old_url) != 1:
-              raise SystemExit('ordered-reference URL mismatch')
+              raise SystemExit(f'expected one MED URL, found {text.count(old_url)}')
           text = text.replace(old_url, new_url)
 
-          old_fallback = '''              const metadata = await lookupPMCMetadata(normalized);
+          old_fallback = '''    const metadata = await lookupPMCMetadata(normalized);
               if (!metadata?.pmid) return undefined;
               return fetchOrderedEuropePMCReferences(metadata.pmid);'''
-          new_fallback = '''              return fetchOrderedEuropePMCReferences(normalized);'''
+          new_fallback = '''    return fetchOrderedEuropePMCReferences(normalized);'''
           if text.count(old_fallback) != 1:
-              raise SystemExit('ordered-reference fallback mismatch')
+              raise SystemExit(f'expected one fallback, found {text.count(old_fallback)}')
           text = text.replace(old_fallback, new_fallback)
 
           path.write_text(text)
