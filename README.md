@@ -5,24 +5,29 @@
 
 MDPI Filter identifies MDPI publications in your Zotero libraries and makes them easy to find with Zotero's existing tag selector and item table.
 
+This plugin adapts the publication-identification logic from [MDPI Filter for Chrome](https://github.com/mdpi-filter/mdpi-filter-chrome) to Zotero's structured library metadata. Browser-only functions such as hiding Google results or styling citations inside webpages are not technically available inside Zotero; their Zotero equivalents are automatic tagging, a sortable column, and library/selection scans.
+
 ## Features
 
 - Detects MDPI items from:
   - DOI prefix `10.3390/`
-  - `mdpi.com` URLs
+  - `mdpi.com` and `mdpi.org` URLs, including genuine subdomains
   - Publisher metadata containing `MDPI` or `Multidisciplinary Digital Publishing Institute`
+  - The structured Zotero journal fields used by the Chrome extension's journal fallback
+  - PMID and PMCID metadata resolved through the NCBI ID Converter API
+- Rejects hostname lookalikes such as `mdpi.com.evil.example`.
 - Adds the dedicated tag `mdpi-filter:MDPI` to matching items.
 - Removes that dedicated tag when the item's metadata no longer matches.
 - Automatically checks newly added and modified Zotero items.
 - Adds an **MDPI** item-table column for quick visual identification and sorting.
 - Adds commands to scan the current library or only the selected items.
-- Performs all checks locally. No browsing data or Zotero metadata is sent anywhere.
 
 ## Installation
 
-1. Download the latest `.xpi` file from the repository's Releases page.
-2. In Zotero, open **Tools → Plugins**.
-3. Drag the `.xpi` file into the Plugins window, or use the gear menu to install it from a file.
+1. Open the repository's **Releases** page.
+2. Download the latest file ending in `.xpi`.
+3. In Zotero, open **Tools → Plugins**.
+4. Drag the `.xpi` file into the Plugins window, or use the gear menu to install it from a file.
 
 The plugin targets Zotero 7, 8, and 9.
 
@@ -46,11 +51,21 @@ Select one or more items, right-click, and choose:
 
 Right-click the item-table header and enable the **MDPI** column. Matching items display `MDPI` and can be sorted together.
 
-## Detection policy
+## Detection and privacy
 
-The plugin intentionally uses high-confidence metadata signals rather than a journal-title list. This reduces false positives caused by ambiguous or renamed journals. Items with incomplete metadata may not be detected until a DOI, URL, or publisher field is available.
+DOI, domain, publisher, and journal checks run locally. When an item has a PMID or PMCID but no conclusive local signal, the plugin sends only that public identifier to the NCBI ID Converter service to determine its DOI. It does not send titles, authors, notes, attachments, collections, or other Zotero data.
+
+The NCBI lookup is enabled by default to match the Chrome extension's behavior. It can be disabled in Zotero's Advanced Config Editor by setting:
+
+`extensions.zotero.mdpifilter.ncbiApiEnabled` to `false`.
+
+The journal-name fallback is applied only to Zotero's structured publication-title or journal-abbreviation fields, rather than arbitrary title text, to reduce false positives.
 
 The tag `mdpi-filter:MDPI` is managed by the plugin. Removing it manually from a matching item is temporary; the plugin will restore it the next time that item is checked.
+
+## Tests
+
+The CI suite builds the `.xpi`, runs formatting and TypeScript checks, and launches the plugin inside a headless Zotero runtime. Runtime tests cover startup, menu registration, Chrome-derived detection signals, spoofed-domain rejection, NCBI resolution, automatic tag updates, and full-library scans.
 
 ## Development
 
