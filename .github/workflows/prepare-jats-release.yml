@@ -20,33 +20,54 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Apply exact static fixes
+      - name: Apply verified static fixes
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
 
           path = Path('src/modules/referenceScanner.ts')
           text = path.read_text()
-          text = text.replace(
-              'Array.from(reference.querySelectorAll("ext-link, uri"))',
-              '(Array.from(reference.querySelectorAll("ext-link, uri")) as Element[])',
+
+          text, link_loops = re.subn(
+              r'Array\.from\(reference\.querySelectorAll\("ext-link, uri"\)\)',
+              'Array.from<Element>(reference.querySelectorAll("ext-link, uri") as any)',
+              text,
           )
-          text = text.replace(
-              'Array.from(\n    document.querySelectorAll("xref[ref-type=\'bibr\'][rid]"),\n  ))',
-              'Array.from(\n    document.querySelectorAll("xref[ref-type=\'bibr\'][rid]"),\n  ) as Element[])',
+          text, xref_loops = re.subn(
+              r'Array\.from\(\s*document\.querySelectorAll\("xref\[ref-type=\'bibr\'\]\[rid\]"\),?\s*\)',
+              'Array.from<Element>(document.querySelectorAll("xref[ref-type=\'bibr\'][rid]") as any)',
+              text,
+              flags=re.S,
           )
-          text = text.replace(
-              'Array.from(\n    document.querySelectorAll("ref-list ref[id]"),\n  ))',
-              'Array.from(\n    document.querySelectorAll("ref-list ref[id]"),\n  ) as Element[])',
+          text, ref_loops = re.subn(
+              r'Array\.from\(\s*document\.querySelectorAll\("ref-list ref\[id\]"\),?\s*\)',
+              'Array.from<Element>(document.querySelectorAll("ref-list ref[id]") as any)',
+              text,
+              flags=re.S,
           )
-          text = text.replace(
-              r'/[\[(]\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*[\])]/g',
+          text, opening_regex = re.subn(
+              r'/\[\\\[\(\]\\s\*\\d\+\(\?:\\s\*\(\?:\[,;\]\|\\u2013\|\\u2014\|-\)\\s\*\\d\+\)\*\\s\*\[\\\]\)\]/g',
               r'/(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))/g',
+              text,
           )
-          text = text.replace(
-              r'/^[\[(]\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*[\])]$/',
+          text, anchored_regex = re.subn(
+              r'/\^\[\\\[\(\]\\s\*\\d\+\(\?:\\s\*\(\?:\[,;\]\|\\u2013\|\\u2014\|-\)\\s\*\\d\+\)\*\\s\*\[\\\]\)\]\$/',
               r'/^(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))$/',
+              text,
           )
+
+          if link_loops != 2 or xref_loops != 1 or ref_loops != 1:
+              raise SystemExit(
+                  f'unexpected DOM replacements: links={link_loops}, xrefs={xref_loops}, refs={ref_loops}'
+              )
+          if opening_regex != 1 or anchored_regex != 1:
+              raise SystemExit(
+                  f'unexpected regex replacements: open={opening_regex}, anchored={anchored_regex}'
+              )
+          if text.count('Array.from<Element>') != 4:
+              raise SystemExit('expected four typed DOM conversions')
+
           path.write_text(text)
           PY
       - name: Install and format
