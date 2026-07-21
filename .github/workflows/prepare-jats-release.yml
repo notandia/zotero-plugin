@@ -1,0 +1,70 @@
+name: Prepare JATS release
+
+on:
+  push:
+    branches:
+      - fix/pmc-jats-highlights
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pmc-jats-highlights
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install and format
+        run: |
+          npm install
+          npm install --package-lock-only --ignore-scripts
+          npx prettier --write \
+            src/modules/referenceScanner.ts \
+            src/hooks.ts \
+            test/mdpiFilter.spec.ts \
+            README.md \
+            package.json \
+            package-lock.json \
+            .github/workflows/ci.yml
+      - name: Validate
+        run: |
+          set +e
+          npm run lint:check > lint-diagnostics.txt 2>&1
+          LINT_STATUS=$?
+          npm run build > build-diagnostics.txt 2>&1
+          BUILD_STATUS=$?
+          set -e
+          if [ "$LINT_STATUS" -ne 0 ] || [ "$BUILD_STATUS" -ne 0 ]; then
+            exit 1
+          fi
+      - name: Commit prepared release
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/prepare-jats-release.yml
+          git add \
+            src/modules/referenceScanner.ts \
+            src/hooks.ts \
+            test/mdpiFilter.spec.ts \
+            README.md \
+            package.json \
+            package-lock.json \
+            .github/workflows/ci.yml \
+            .github/workflows/prepare-jats-release.yml
+          git commit -m "fix: prepare precise PMC citation highlighting"
+          git push origin HEAD:fix/pmc-jats-highlights
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jats-release-diagnostics
+          path: |
+            lint-diagnostics.txt
+            build-diagnostics.txt
