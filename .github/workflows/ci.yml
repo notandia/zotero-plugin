@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "feat/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
@@ -19,16 +20,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-
       - name: Install deps
         run: npm install
-
       - name: Run lint
         run: npm run lint:check
 
@@ -41,19 +39,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-
       - name: Install deps
         run: npm install
-
       - name: Run build
         run: npm run build
-
       - name: Upload build result
         uses: actions/upload-artifact@v4
         with:
@@ -70,13 +64,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -87,10 +79,8 @@ jobs:
             libxt6 \
             libx11-xcb1 \
             libasound2t64
-
       - name: Install npm dependencies
         run: npm install
-
       - name: Download Zotero 9.0.6
         run: |
           curl --fail --location --retry 3 \
@@ -104,13 +94,10 @@ jobs:
           echo "ZOTERO_PLUGIN_PROFILE_PATH=$RUNNER_TEMP/zotero-profile" >> "$GITHUB_ENV"
           echo "ZOTERO_PLUGIN_DATA_DIR=$RUNNER_TEMP/zotero-data" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/zotero-profile" "$RUNNER_TEMP/zotero-data"
-
       - name: Run Zotero runtime tests
         run: xvfb-run --auto-servernum npm test 2>&1 | tee runtime-test-output.txt
-
       - name: Validate runtime test result
-        run: grep -Fq "Test run completed - 6 passed" runtime-test-output.txt
-
+        run: grep -Fq "Test run completed - 8 passed" runtime-test-output.txt
       - name: Upload runtime test report
         if: always()
         uses: actions/upload-artifact@v4

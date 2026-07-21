@@ -61,6 +61,10 @@ describe("MDPI Filter Zotero runtime", function () {
     assert(plugin.data.initialized, "plugin did not finish startup");
     assert(plugin.api.isMDPIItem, "plugin API was not exposed");
     assert(plugin.api.detectMDPIItem, "async detection API was not exposed");
+    assert(
+      plugin.api.findMDPIReferences,
+      "reader reference scanner API was not exposed",
+    );
 
     const win = Zotero.getMainWindow();
     assert(win, "Zotero main window is unavailable");
@@ -122,6 +126,43 @@ describe("MDPI Filter Zotero runtime", function () {
     } finally {
       Zotero.HTTP.request = originalRequest;
     }
+  });
+
+  it("scans the bibliography instead of the paper's own metadata", async function () {
+    const { findMDPIReferences } = getPlugin().api;
+    const text = `
+      Article title
+      DOI: 10.3390/own-paper-doi
+      Body text
+      References
+      1. Example non-MDPI paper. doi:10.1038/example
+      2. Example MDPI paper. https://doi.org/10.3390/ijerph20010042.
+      3. Another MDPI source. https://www.mdpi.com/2076-3417/13/1/1
+    `;
+    const matches = await findMDPIReferences(text);
+    assert(
+      !matches.some((entry: any) => entry.doi === "10.3390/own-paper-doi"),
+      "the paper's own DOI was incorrectly treated as a reference",
+    );
+    assert(
+      matches.some((entry: any) => entry.doi === "10.3390/ijerph20010042"),
+      "MDPI DOI in bibliography was not detected",
+    );
+    assert(
+      matches.some((entry: any) => entry.source === "domain"),
+      "MDPI domain in bibliography was not detected",
+    );
+  });
+
+  it("resolves a real PMC reference through the current NCBI endpoint", async function () {
+    this.timeout(30000);
+    const matches = await getPlugin().api.findMDPIReferences(
+      "References\n1. Rapid determination study. PMCID: PMC11172733",
+    );
+    assert(
+      matches.some((entry: any) => entry.pmcid === "PMC11172733"),
+      "live PMCID-to-MDPI resolution failed",
+    );
   });
 
   it("rejects lookalike and embedded MDPI hostnames", function () {
