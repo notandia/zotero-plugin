@@ -54,45 +54,6 @@ jobs:
           name: build-result
           path: .scaffold/build
 
-  diagnostics:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install deps
-        run: npm install
-      - name: Format candidate and capture diagnostics
-        run: |
-          npx prettier --write \
-            src/modules/referenceScanner.ts \
-            src/hooks.ts \
-            test/mdpiFilter.spec.ts \
-            README.md \
-            package.json \
-            package-lock.json \
-            .github/workflows/ci.yml
-          npm run lint:check > lint-diagnostics.txt 2>&1 || true
-          npm run build > build-diagnostics.txt 2>&1 || true
-          cp src/modules/referenceScanner.ts formatted-referenceScanner.ts
-          cp src/hooks.ts formatted-hooks.ts
-          cp test/mdpiFilter.spec.ts formatted-tests.ts
-      - name: Upload diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: jats-static-diagnostics
-          path: |
-            lint-diagnostics.txt
-            build-diagnostics.txt
-            formatted-referenceScanner.ts
-            formatted-hooks.ts
-            formatted-tests.ts
-            package-lock.json
-
   zotero-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 15
