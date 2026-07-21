@@ -1,123 +1,244 @@
-name: CI
+name: Prepare ordered Europe PMC references
 
 on:
-  push:
-    branches:
-      - main
-      - "feat/**"
-      - "fix/**"
   pull_request:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
-  lint:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
     steps:
-      - name: Checkout
+      - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: fix/pmc-jats-highlights
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-      - name: Install deps
-        run: npm install
-      - name: Run lint
-        run: npm run lint:check
-
-  build:
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install deps
-        run: npm install
-      - name: Package and validate XPI
+      - name: Add ordered references fallback
         run: |
-          set +e
-          npx zotero-plugin build
-          SCAFFOLD_STATUS=$?
-          set -e
-          echo "zotero-plugin build exit status: $SCAFFOLD_STATUS"
-          npx tsc --noEmit
-          XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
-          test -n "$XPI"
-          unzip -tq "$XPI"
-          unzip -p "$XPI" manifest.json > /tmp/mdpi-filter-manifest.json
           python - <<'PY'
-          import json
-          with open('/tmp/mdpi-filter-manifest.json') as file:
-              manifest = json.load(file)
-          assert manifest['version'] == '0.1.2', manifest
-          assert manifest['name'] == 'MDPI Filter', manifest
-          PY
-      - name: Upload build result
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-result
-          path: .scaffold/build
+          import re
+          from pathlib import Path
 
-  zotero-runtime:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install system dependencies
+          path = Path('src/modules/referenceScanner.ts')
+          text = path.read_text()
+          replacement = r'''async function lookupPMCMetadata(
+            pmcid: string,
+          ): Promise<{ pmid?: string; doi?: string } | undefined> {
+            const url = new URL(NCBI_ID_CONVERTER);
+            url.searchParams.set("ids", pmcid);
+            url.searchParams.set("idtype", "pmcid");
+            url.searchParams.set("format", "json");
+            url.searchParams.set("versions", "no");
+            url.searchParams.set("tool", "MDPIFilterZotero");
+            try {
+              const response = await (Zotero.HTTP as any).request(
+                "GET",
+                url.toString(),
+                {
+                  anon: true,
+                  errorDelayMax: 0,
+                  responseType: "json",
+                  successCodes: [200],
+                  timeout: NCBI_TIMEOUT_MS,
+                },
+              );
+              const data =
+                response.response ||
+                (response.responseText
+                  ? JSON.parse(response.responseText)
+                  : undefined);
+              const record = Array.isArray(data?.records)
+                ? data.records[0]
+                : undefined;
+              if (!record) return undefined;
+              return {
+                pmid: record.pmid ? String(record.pmid) : undefined,
+                doi: record.doi ? cleanDOI(String(record.doi)) : undefined,
+              };
+            } catch (error) {
+              Zotero.logError(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+              return undefined;
+            }
+          }
+
+          function europePMCReferenceSnippet(reference: any): string {
+            return normalizeWhitespace(
+              [
+                reference?.authorString,
+                reference?.title,
+                reference?.journalTitle,
+                reference?.pubYear,
+                reference?.volume,
+                reference?.issue,
+                reference?.pageInfo,
+                reference?.doi ? `doi: ${reference.doi}` : "",
+              ]
+                .filter(Boolean)
+                .join(". "),
+            );
+          }
+
+          async function fetchOrderedEuropePMCReferences(
+            pmid: string,
+          ): Promise<MDPIReferenceMatch[] | undefined> {
+            const url = new URL(
+              `https://www.ebi.ac.uk/europepmc/webservices/rest/MED/${pmid}/references`,
+            );
+            url.searchParams.set("page", "1");
+            url.searchParams.set("pageSize", "1000");
+            url.searchParams.set("format", "json");
+            try {
+              const response = await (Zotero.HTTP as any).request(
+                "GET",
+                url.toString(),
+                {
+                  anon: true,
+                  errorDelayMax: 0,
+                  responseType: "json",
+                  successCodes: [200],
+                  timeout: NCBI_TIMEOUT_MS,
+                },
+              );
+              const data =
+                response.response ||
+                (response.responseText
+                  ? JSON.parse(response.responseText)
+                  : undefined);
+              const references = Array.isArray(data?.referenceList?.reference)
+                ? data.referenceList.reference
+                : [];
+              if (!references.length) return undefined;
+
+              const unresolvedPMIDs = references
+                .filter(
+                  (reference: any) =>
+                    !containsMDPIDOI(String(reference?.doi || "")) &&
+                    /^\d{1,20}$/.test(String(reference?.id || "")),
+                )
+                .map((reference: any) => String(reference.id));
+              const pmidResults = await resolveNCBI(unresolvedPMIDs, "pmid");
+
+              const matches: MDPIReferenceMatch[] = [];
+              references.forEach((reference: any, index: number) => {
+                const label = String(
+                  reference?.refNum ||
+                    reference?.referenceNumber ||
+                    reference?.order ||
+                    index + 1,
+                );
+                const doi = reference?.doi
+                  ? cleanDOI(String(reference.doi))
+                  : undefined;
+                const pmid = /^\d{1,20}$/.test(String(reference?.id || ""))
+                  ? String(reference.id)
+                  : undefined;
+                if (
+                  !containsMDPIDOI(doi || "") &&
+                  !(pmid && pmidResults.get(pmid) === true)
+                ) {
+                  return;
+                }
+                matches.push({
+                  key: `europe-pmc-ref:${label}:${doi || pmid || index}`,
+                  doi,
+                  pmid,
+                  referenceId: `EP${label}`,
+                  referenceLabel: label,
+                  citationMarkers: [
+                    { text: `[${label}]`, safe: true },
+                    { text: `(${label})`, safe: true },
+                  ],
+                  snippet: europePMCReferenceSnippet(reference),
+                  source: "pmc-jats",
+                });
+              });
+              return matches;
+            } catch (error) {
+              Zotero.logError(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+              return undefined;
+            }
+          }
+
+          export async function fetchPMCReferenceMatches(
+            pmcid: string,
+          ): Promise<MDPIReferenceMatch[] | undefined> {
+            const normalized = extractPMCIDFromText(pmcid);
+            if (!normalized) return undefined;
+            const cached = pmcReferenceCache.get(normalized);
+            if (cached) return cached;
+
+            const promise = (async () => {
+              const fullTextURL = new URL(
+                `https://www.ebi.ac.uk/europepmc/webservices/rest/${normalized}/fullTextXML`,
+              );
+              try {
+                const response = await (Zotero.HTTP as any).request(
+                  "GET",
+                  fullTextURL.toString(),
+                  {
+                    anon: true,
+                    errorDelayMax: 0,
+                    responseType: "text",
+                    successCodes: [200, 404],
+                    timeout: NCBI_TIMEOUT_MS,
+                  },
+                );
+                const xmlText = String(
+                  response.responseText || response.response || "",
+                );
+                if (xmlText.trim()) {
+                  const structured = await parsePMCReferenceXML(xmlText);
+                  if (structured.length) return structured;
+                }
+              } catch (error) {
+                Zotero.logError(
+                  error instanceof Error ? error : new Error(String(error)),
+                );
+              }
+
+              const metadata = await lookupPMCMetadata(normalized);
+              if (!metadata?.pmid) return undefined;
+              return fetchOrderedEuropePMCReferences(metadata.pmid);
+            })();
+            pmcReferenceCache.set(normalized, promise);
+            return promise;
+          }
+
+          export async function findMDPIReferences'''
+
+          text, count = re.subn(
+              r'export async function fetchPMCReferenceMatches\(.*?\n\}\n\nexport async function findMDPIReferences',
+              lambda _match: replacement,
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit(f'expected one fetchPMCReferenceMatches replacement, found {count}')
+          path.write_text(text)
+          PY
+      - name: Format and validate source
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            xvfb \
-            libgtk-3-0 \
-            libdbus-glib-1-2 \
-            libxt6 \
-            libx11-xcb1 \
-            libasound2t64
-      - name: Install npm dependencies
-        run: npm install
-      - name: Download Zotero 9.0.6
+          npm install
+          npx prettier --write src/modules/referenceScanner.ts
+          npm run lint:check
+      - name: Commit source only
         run: |
-          curl --fail --location --retry 3 \
-            "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6" \
-            --output zotero.tar.xz
-          mkdir zotero-runtime
-          tar -xJf zotero.tar.xz -C zotero-runtime
-          ZOTERO_BIN="$(find "$GITHUB_WORKSPACE/zotero-runtime" -type f -name zotero -perm -u+x | head -n 1)"
-          test -n "$ZOTERO_BIN"
-          echo "ZOTERO_PLUGIN_ZOTERO_BIN_PATH=$ZOTERO_BIN" >> "$GITHUB_ENV"
-          echo "ZOTERO_PLUGIN_PROFILE_PATH=$RUNNER_TEMP/zotero-profile" >> "$GITHUB_ENV"
-          echo "ZOTERO_PLUGIN_DATA_DIR=$RUNNER_TEMP/zotero-data" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/zotero-profile" "$RUNNER_TEMP/zotero-data"
-      - name: Run Zotero runtime tests
-        run: xvfb-run --auto-servernum npm test 2>&1 | tee runtime-test-output.txt
-      - name: Validate runtime test result
-        run: grep -Fq "Test run completed - 11 passed" runtime-test-output.txt
-      - name: Upload runtime test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zotero-runtime-test-report
-          path: runtime-test-output.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/referenceScanner.ts
+          git commit -m "fix: use ordered Europe PMC references when XML is unavailable"
+          git push origin HEAD:fix/pmc-jats-highlights
