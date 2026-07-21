@@ -23,51 +23,46 @@ jobs:
       - name: Apply verified static fixes
         run: |
           python - <<'PY'
-          import re
           from pathlib import Path
 
           path = Path('src/modules/referenceScanner.ts')
           text = path.read_text()
 
-          text, link_loops = re.subn(
-              r'Array\.from\(reference\.querySelectorAll\("ext-link, uri"\)\)',
-              'Array.from<Element>(reference.querySelectorAll("ext-link, uri") as any)',
-              text,
-          )
-          text, xref_loops = re.subn(
-              r'Array\.from\(\s*document\.querySelectorAll\("xref\[ref-type=\'bibr\'\]\[rid\]"\),?\s*\)',
-              'Array.from<Element>(document.querySelectorAll("xref[ref-type=\'bibr\'][rid]") as any)',
-              text,
-              flags=re.S,
-          )
-          text, ref_loops = re.subn(
-              r'Array\.from\(\s*document\.querySelectorAll\("ref-list ref\[id\]"\),?\s*\)',
-              'Array.from<Element>(document.querySelectorAll("ref-list ref[id]") as any)',
-              text,
-              flags=re.S,
-          )
-          text, opening_regex = re.subn(
-              r'/\[\\\[\(\]\\s\*\\d\+\(\?:\\s\*\(\?:\[,;\]\|\\u2013\|\\u2014\|-\)\\s\*\\d\+\)\*\\s\*\[\\\]\)\]/g',
-              r'/(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))/g',
-              text,
-          )
-          text, anchored_regex = re.subn(
-              r'/\^\[\\\[\(\]\\s\*\\d\+\(\?:\\s\*\(\?:\[,;\]\|\\u2013\|\\u2014\|-\)\\s\*\\d\+\)\*\\s\*\[\\\]\)\]\$/',
-              r'/^(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))$/',
-              text,
-          )
+          replacements = [
+              (
+                  'for (const link of Array.from(reference.querySelectorAll("ext-link, uri"))) {',
+                  'for (const link of Array.from<Element>(\n    reference.querySelectorAll("ext-link, uri") as any,\n  )) {',
+              ),
+              (
+                  'for (const xref of Array.from(\n    document.querySelectorAll("xref[ref-type=\'bibr\'][rid]"),\n  )) {',
+                  'for (const xref of Array.from<Element>(\n    document.querySelectorAll("xref[ref-type=\'bibr\'][rid]") as any,\n  )) {',
+              ),
+              (
+                  'for (const reference of Array.from(\n    document.querySelectorAll("ref-list ref[id]"),\n  )) {',
+                  'for (const reference of Array.from<Element>(\n    document.querySelectorAll("ref-list ref[id]") as any,\n  )) {',
+              ),
+              (
+                  'const links = Array.from(reference.querySelectorAll("ext-link, uri"))',
+                  'const links = Array.from<Element>(\n      reference.querySelectorAll("ext-link, uri") as any,\n    )',
+              ),
+              (
+                  r'/[\[(]\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*[\])]/g',
+                  r'/(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))/g',
+              ),
+              (
+                  r'/^[\[(]\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*[\])]$/',
+                  r'/^(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))$/',
+              ),
+          ]
 
-          if link_loops != 2 or xref_loops != 1 or ref_loops != 1:
-              raise SystemExit(
-                  f'unexpected DOM replacements: links={link_loops}, xrefs={xref_loops}, refs={ref_loops}'
-              )
-          if opening_regex != 1 or anchored_regex != 1:
-              raise SystemExit(
-                  f'unexpected regex replacements: open={opening_regex}, anchored={anchored_regex}'
-              )
+          for index, (old, new) in enumerate(replacements, start=1):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'replacement {index} expected once, found {count}')
+              text = text.replace(old, new)
+
           if text.count('Array.from<Element>') != 4:
               raise SystemExit('expected four typed DOM conversions')
-
           path.write_text(text)
           PY
       - name: Install and format
