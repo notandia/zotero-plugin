@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feat/working-mdpi-filter
+      - "feat/**"
   pull_request:
     branches:
       - main
@@ -106,4 +106,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/zotero-profile" "$RUNNER_TEMP/zotero-data"
 
       - name: Run Zotero runtime tests
-        run: xvfb-run --auto-servernum npm test
+        run: xvfb-run --auto-servernum npm test 2>&1 | tee runtime-test-output.txt
+
+      - name: Upload runtime test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zotero-runtime-test-report
+          path: runtime-test-output.txt
