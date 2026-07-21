@@ -26,12 +26,10 @@ jobs:
           cache: npm
 
       - name: Install deps
-        run: |
-          npm install
+        run: npm install
 
-      - name: Run Lint
-        run: |
-          npm run lint:check
+      - name: Run lint
+        run: npm run lint:check
 
   build:
     runs-on: ubuntu-latest
@@ -50,16 +48,54 @@ jobs:
           cache: npm
 
       - name: Install deps
-        run: |
-          npm install
+        run: npm install
 
-      - name: Run Build
-        run: |
-          npm run build
+      - name: Run build
+        run: npm run build
 
       - name: Upload build result
         uses: actions/upload-artifact@v4
         with:
           name: build-result
-          path: |
-            build
+          path: .scaffold/build
+
+  zotero-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libdbus-glib-1-2 libxt6 libx11-xcb1 libasound2t64
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Download Zotero release
+        run: |
+          curl --fail --location --retry 3 \
+            "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64" \
+            --output zotero.tar.bz2
+          tar -xjf zotero.tar.bz2
+          ZOTERO_DIR="$(find "$GITHUB_WORKSPACE" -maxdepth 1 -type d -name 'Zotero_linux-*' | head -n 1)"
+          test -x "$ZOTERO_DIR/zotero"
+          echo "ZOTERO_PLUGIN_ZOTERO_BIN_PATH=$ZOTERO_DIR/zotero" >> "$GITHUB_ENV"
+          echo "ZOTERO_PLUGIN_PROFILE_PATH=$RUNNER_TEMP/zotero-profile" >> "$GITHUB_ENV"
+          echo "ZOTERO_PLUGIN_DATA_DIR=$RUNNER_TEMP/zotero-data" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/zotero-profile" "$RUNNER_TEMP/zotero-data"
+
+      - name: Run Zotero runtime tests
+        run: xvfb-run --auto-servernum npm test
