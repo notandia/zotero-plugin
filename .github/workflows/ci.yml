@@ -54,6 +54,26 @@ jobs:
           name: build-result
           path: .scaffold/build
 
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install deps
+        run: npm install
+      - name: Capture build output
+        run: npm run build > build-diagnostics.txt 2>&1 || true
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: v012-build-diagnostics
+          path: build-diagnostics.txt
+
   zotero-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 15
