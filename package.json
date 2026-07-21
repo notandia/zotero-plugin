@@ -1,24 +1,24 @@
 {
-  "name": "zotero-plugin-template",
+  "name": "mdpi-filter-zotero",
   "type": "module",
-  "version": "3.1.0",
-  "description": "Zotero Plugin Template",
+  "version": "0.1.0",
+  "description": "Identify and filter MDPI publications in Zotero.",
   "config": {
-    "addonName": "Zotero Plugin Template",
-    "addonID": "addontemplate@euclpts.com",
-    "addonRef": "addontemplate",
-    "addonInstance": "AddonTemplate",
-    "prefsPrefix": "extensions.zotero.addontemplate"
+    "addonName": "MDPI Filter",
+    "addonID": "mdpi-filter@mdpi-filter.github.io",
+    "addonRef": "mdpifilter",
+    "addonInstance": "MDPIFilter",
+    "prefsPrefix": "extensions.zotero.mdpifilter"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/windingwind/zotero-plugin-template.git"
+    "url": "git+https://github.com/mdpi-filter/mdpi-filter-zotero.git"
   },
-  "author": "windingwind",
+  "author": "MDPI Filter contributors",
   "bugs": {
-    "url": "https://github.com/windingwind/zotero-plugin-template/issues"
+    "url": "https://github.com/mdpi-filter/mdpi-filter-zotero/issues"
   },
-  "homepage": "https://github.com/windingwind/zotero-plugin-template#readme",
+  "homepage": "https://github.com/mdpi-filter/mdpi-filter-zotero#readme",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
@@ -26,7 +26,7 @@
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "zotero-plugin test --abort-on-fail --exit-on-finish",
     "update-deps": "npm update --save"
   },
   "dependencies": {
