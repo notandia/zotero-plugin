@@ -1,5 +1,6 @@
 import {
   FILTER_TAG,
+  detectMDPIItem,
   isMDPIItem,
   registerMDPIColumn,
   registerMDPINotifier,
@@ -138,6 +139,7 @@ async function onStartup(): Promise<void> {
 
   addon.api = {
     FILTER_TAG,
+    detectMDPIItem,
     isMDPIItem,
     scanLibrary,
     syncItems,
