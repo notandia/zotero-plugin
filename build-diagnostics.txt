@@ -2,7 +2,7 @@
 > mdpi-filter-zotero@0.1.0 build
 > zotero-plugin build && tsc --noEmit
 
- ℹ Building version 0.1.0 to .scaffold/build at 2026-07-21 12:14:37 in production mode.
+ ℹ Building version 0.1.0 to .scaffold/build at 2026-07-21 12:16:58 in production mode.
    → Preparing static assets
 
   WARN  Pref key 'enable' in .scaffold/build/addon/content/preferences.xhtml is not found in prefs.js, skip prefixing it.
@@ -12,7 +12,7 @@
 
    → Bundling scripts
    → Packing plugin
- ✔ Build finished in 0.082 s.
+ ✔ Build finished in 0.172 s.
 
  ℹ New version of zotero-plugin-scaffold available!
  ℹ Update: 0.6.0 → 0.8.7 (minor)
