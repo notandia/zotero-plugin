@@ -108,6 +108,9 @@ jobs:
       - name: Run Zotero runtime tests
         run: xvfb-run --auto-servernum npm test 2>&1 | tee runtime-test-output.txt
 
+      - name: Validate runtime test result
+        run: grep -Fq "Test run completed - 6 passed" runtime-test-output.txt
+
       - name: Upload runtime test report
         if: always()
         uses: actions/upload-artifact@v4
