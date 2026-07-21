@@ -18,7 +18,9 @@ const pendingItemIDs = new Set<number>();
 function getField(item: Zotero.Item, field: string): string {
   try {
     const value = item.getField(field as any);
-    return typeof value === "string" ? value.trim() : String(value || "").trim();
+    return typeof value === "string"
+      ? value.trim()
+      : String(value || "").trim();
   } catch (_error) {
     return "";
   }
@@ -33,7 +35,9 @@ function containsMDPIURL(value: string): boolean {
 }
 
 function containsMDPIPublisher(value: string): boolean {
-  return /\bMDPI\b|Multidisciplinary Digital Publishing Institute/i.test(value);
+  return /\bMDPI\b|Multidisciplinary Digital Publishing Institute/i.test(
+    value,
+  );
 }
 
 export function isMDPIItem(item: Zotero.Item): boolean {
@@ -113,8 +117,7 @@ export async function syncItems(items: Zotero.Item[]): Promise<ScanResult> {
 }
 
 export async function scanLibrary(libraryID: number): Promise<ScanResult> {
-  const search = new Zotero.Search();
-  search.libraryID = libraryID;
+  const search = Object.assign(new Zotero.Search(), { libraryID });
   search.addCondition("itemType", "isNot", "attachment");
   search.addCondition("itemType", "isNot", "note");
 
