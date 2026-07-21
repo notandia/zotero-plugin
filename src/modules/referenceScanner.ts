@@ -6,6 +6,7 @@ const NCBI_ID_CONVERTER =
   "https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/";
 const NCBI_TIMEOUT_MS = 15000;
 const CONTEXT_RADIUS = 260;
+const READER_PANE_ID = `${config.addonRef}-reader-references`;
 
 export type MDPIReferenceMatch = {
   key: string;
@@ -25,6 +26,19 @@ function cleanDOI(value: string): string {
     .replace(/[),.;:\]}]+$/g, "")
     .replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "")
     .toLowerCase();
+}
+
+function extractReferenceSection(text: string): string {
+  const headings = Array.from(
+    text.matchAll(
+      /(?:^|\n)\s*(?:references|bibliography|literature cited)\s*(?:\n|$)/gim,
+    ),
+  );
+  const heading = headings.at(-1);
+  if (heading?.index !== undefined) {
+    return text.slice(heading.index + heading[0].length);
+  }
+  return text.length > 4000 ? text.slice(Math.floor(text.length * 0.55)) : text;
 }
 
 function contextSnippet(text: string, index: number, length: number): string {
@@ -152,9 +166,9 @@ async function resolveNCBI(
 export async function findMDPIReferences(
   text: string,
 ): Promise<MDPIReferenceMatch[]> {
-  const normalizedText = String(text || "");
-  const matches = extractLocalMatches(normalizedText);
-  const identifiers = extractIdentifiers(normalizedText);
+  const referenceText = extractReferenceSection(String(text || ""));
+  const matches = extractLocalMatches(referenceText);
+  const identifiers = extractIdentifiers(referenceText);
   const [pmidResults, pmcidResults] = await Promise.all([
     resolveNCBI(
       identifiers.pmids.map((entry) => entry.id),
@@ -171,7 +185,7 @@ export async function findMDPIReferences(
     addMatch(matches, {
       key: `pmid:${entry.id}`,
       pmid: entry.id,
-      snippet: contextSnippet(normalizedText, entry.index, entry.length),
+      snippet: contextSnippet(referenceText, entry.index, entry.length),
       source: "ncbi",
     });
   }
@@ -180,7 +194,7 @@ export async function findMDPIReferences(
     addMatch(matches, {
       key: `pmcid:${entry.id}`,
       pmcid: entry.id,
-      snippet: contextSnippet(normalizedText, entry.index, entry.length),
+      snippet: contextSnippet(referenceText, entry.index, entry.length),
       source: "ncbi",
     });
   }
@@ -209,7 +223,7 @@ function renderMatches(body: Element, matches: MDPIReferenceMatch[]): void {
   body.replaceChildren();
   const document = body.ownerDocument;
   const intro = document.createElement("p");
-  intro.textContent = `${matches.length} MDPI reference${matches.length === 1 ? "" : "s"} detected in the indexed document text.`;
+  intro.textContent = `${matches.length} MDPI reference${matches.length === 1 ? "" : "s"} detected in the bibliography.`;
   intro.style.margin = "8px 0";
   body.appendChild(intro);
 
@@ -238,7 +252,7 @@ export function registerReferenceReaderSection(): void {
   if (typeof manager?.registerSection !== "function") return;
 
   manager.registerSection({
-    paneID: `${config.addonRef}-reader-references`,
+    paneID: READER_PANE_ID,
     pluginID: config.addonID,
     header: {
       l10nID: `${config.addonRef}-reader-references-header`,
@@ -253,7 +267,7 @@ export function registerReferenceReaderSection(): void {
       return true;
     },
     onRender: ({ body, setSectionSummary }: any) => {
-      renderMessage(body, "Scanning indexed document text…");
+      renderMessage(body, "Scanning indexed bibliography text…");
       setSectionSummary("Scanning…");
     },
     onAsyncRender: async ({ body, item, setSectionSummary }: any) => {
@@ -268,7 +282,7 @@ export function registerReferenceReaderSection(): void {
       }
       const matches = await findMDPIReferences(text);
       if (!matches.length) {
-        renderMessage(body, "No MDPI references were found in the indexed document text.");
+        renderMessage(body, "No MDPI references were found in the bibliography.");
         setSectionSummary("0 found");
         return;
       }
@@ -276,4 +290,11 @@ export function registerReferenceReaderSection(): void {
       setSectionSummary(`${matches.length} found`);
     },
   });
+}
+
+export function unregisterReferenceReaderSection(): void {
+  const manager = Zotero.ItemPaneManager as any;
+  if (typeof manager?.unregisterSection === "function") {
+    manager.unregisterSection(READER_PANE_ID);
+  }
 }
