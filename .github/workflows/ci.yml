@@ -10,6 +10,27 @@ on:
       - main
 
 jobs:
+  download-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe official Zotero download
+        shell: bash
+        run: |
+          set +e
+          curl --silent --show-error --location \
+            --dump-header headers.txt \
+            --write-out 'curl_status=%{exitcode}\nhttp_status=%{http_code}\neffective_url=%{url_effective}\nbytes=%{size_download}\ncontent_type=%{content_type}\n' \
+            "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6" \
+            --output zotero-download
+          CURL_STATUS=$?
+          echo '--- response headers ---'
+          tail -n 30 headers.txt
+          echo '--- downloaded file ---'
+          ls -l zotero-download 2>/dev/null || true
+          file zotero-download 2>/dev/null || true
+          tar -tjf zotero-download 2>&1 | head -n 10 || true
+          exit "$CURL_STATUS"
+
   lint:
     runs-on: ubuntu-latest
     env:
