@@ -155,7 +155,8 @@ async function resolveNCBI(
         ? String(record.pmcid).toUpperCase()
         : undefined;
       if (recordPMID && result.has(recordPMID)) result.set(recordPMID, isMDPI);
-      if (recordPMCID && result.has(recordPMCID)) result.set(recordPMCID, isMDPI);
+      if (recordPMCID && result.has(recordPMCID))
+        result.set(recordPMCID, isMDPI);
     }
   } catch (error) {
     Zotero.logError(error instanceof Error ? error : new Error(String(error)));
@@ -213,7 +214,7 @@ async function getAttachmentText(item: Zotero.Item): Promise<string> {
 
 function renderMessage(body: Element, message: string): void {
   body.replaceChildren();
-  const paragraph = body.ownerDocument.createElement("p");
+  const paragraph = body.ownerDocument!.createElement("p");
   paragraph.textContent = message;
   paragraph.style.margin = "8px 0";
   body.appendChild(paragraph);
@@ -221,7 +222,7 @@ function renderMessage(body: Element, message: string): void {
 
 function renderMatches(body: Element, matches: MDPIReferenceMatch[]): void {
   body.replaceChildren();
-  const document = body.ownerDocument;
+  const document = body.ownerDocument!;
   const intro = document.createElement("p");
   intro.textContent = `${matches.length} MDPI reference${matches.length === 1 ? "" : "s"} detected in the bibliography.`;
   intro.style.margin = "8px 0";
@@ -282,7 +283,10 @@ export function registerReferenceReaderSection(): void {
       }
       const matches = await findMDPIReferences(text);
       if (!matches.length) {
-        renderMessage(body, "No MDPI references were found in the bibliography.");
+        renderMessage(
+          body,
+          "No MDPI references were found in the bibliography.",
+        );
         setSectionSummary("0 found");
         return;
       }
