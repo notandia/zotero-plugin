@@ -93,12 +93,13 @@ jobs:
       - name: Download Zotero 9.0.6
         run: |
           curl --fail --location --retry 3 \
-            "https://download.zotero.org/client/release/9.0.6/Zotero-9.0.6_linux-x86_64.tar.bz2" \
+            "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6" \
             --output zotero.tar.bz2
-          tar -xjf zotero.tar.bz2
-          ZOTERO_DIR="$GITHUB_WORKSPACE/Zotero_linux-x86_64"
-          test -x "$ZOTERO_DIR/zotero"
-          echo "ZOTERO_PLUGIN_ZOTERO_BIN_PATH=$ZOTERO_DIR/zotero" >> "$GITHUB_ENV"
+          mkdir zotero-runtime
+          tar -xjf zotero.tar.bz2 -C zotero-runtime
+          ZOTERO_BIN="$(find "$GITHUB_WORKSPACE/zotero-runtime" -type f -name zotero -perm -u+x | head -n 1)"
+          test -n "$ZOTERO_BIN"
+          echo "ZOTERO_PLUGIN_ZOTERO_BIN_PATH=$ZOTERO_BIN" >> "$GITHUB_ENV"
           echo "ZOTERO_PLUGIN_PROFILE_PATH=$RUNNER_TEMP/zotero-profile" >> "$GITHUB_ENV"
           echo "ZOTERO_PLUGIN_DATA_DIR=$RUNNER_TEMP/zotero-data" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/zotero-profile" "$RUNNER_TEMP/zotero-data"
