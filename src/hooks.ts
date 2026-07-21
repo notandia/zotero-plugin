@@ -1,5 +1,6 @@
 import {
   FILTER_TAG,
+  isMDPIItem,
   registerMDPIColumn,
   registerMDPINotifier,
   scanLibrary,
@@ -135,6 +136,13 @@ async function onStartup(): Promise<void> {
     Zotero.uiReadyPromise,
   ]);
 
+  addon.api = {
+    FILTER_TAG,
+    isMDPIItem,
+    scanLibrary,
+    syncItems,
+  };
+
   registerMDPINotifier();
 
   try {
@@ -146,6 +154,8 @@ async function onStartup(): Promise<void> {
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
   );
+
+  addon.data.initialized = true;
 }
 
 async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
@@ -160,6 +170,7 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
 function onShutdown(): void {
   unregisterMDPINotifier();
   ztoolkit.unregisterAll();
+  addon.data.initialized = false;
   addon.data.alive = false;
   // @ts-ignore - Plugin instance is not typed
   delete Zotero[addon.data.config.addonInstance];
