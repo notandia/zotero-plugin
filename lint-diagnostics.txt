@@ -1,0 +1,8 @@
+
+> mdpi-filter-zotero@0.1.0 lint:check
+> prettier --check . && eslint .
+
+Checking formatting...
+[warn] src/hooks.ts
+[warn] src/modules/mdpiFilter.ts
+[warn] Code style issues found in 2 files. Run Prettier with --write to fix.
