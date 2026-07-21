@@ -314,18 +314,23 @@ function referenceIdentifier(
 
 function citationGroupAround(xref: Element): CitationMarker {
   const ownText = normalizeWhitespace(xref.textContent || "");
-  const previous = String(xref.previousSibling?.textContent || "").slice(-32);
-  const next = String(xref.nextSibling?.textContent || "").slice(0, 32);
-  const combined = `${previous}${xref.textContent || ""}${next}`;
-  const ownStart = previous.length;
-  const ownEnd = ownStart + String(xref.textContent || "").length;
-  const groupPattern =
-    /(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))/g;
-  for (const found of combined.matchAll(groupPattern)) {
-    const start = found.index || 0;
-    const end = start + found[0].length;
-    if (start <= ownStart && end >= ownEnd) {
-      return { text: normalizeWhitespace(found[0]), safe: true };
+  const parent = xref.parentElement;
+  if (parent) {
+    const combined = String(parent.textContent || "");
+    let ownStart = 0;
+    for (const sibling of Array.from(parent.childNodes)) {
+      if (sibling === xref) break;
+      ownStart += String(sibling.textContent || "").length;
+    }
+    const ownEnd = ownStart + String(xref.textContent || "").length;
+    const groupPattern =
+      /(?:\[|\()\s*\d+(?:\s*(?:[,;]|\u2013|\u2014|-)\s*\d+)*\s*(?:\]|\))/g;
+    for (const found of combined.matchAll(groupPattern)) {
+      const start = found.index || 0;
+      const end = start + found[0].length;
+      if (start <= ownStart && end >= ownEnd) {
+        return { text: normalizeWhitespace(found[0]), safe: true };
+      }
     }
   }
 
