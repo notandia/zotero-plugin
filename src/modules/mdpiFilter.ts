@@ -187,7 +187,23 @@ async function drainNotifierQueue(): Promise<void> {
   }
 }
 
-function enqueueNotifierItems(ids: Array<string | number>): Promise<void> {
+function scheduleNotifierDrain(): void {
+  if (notifierDrainPromise) {
+    return;
+  }
+
+  notifierDrainPromise = Zotero.Promise.delay(0)
+    .then(() => drainNotifierQueue())
+    .catch(logError)
+    .finally(() => {
+      notifierDrainPromise = undefined;
+      if (pendingItemIDs.size) {
+        scheduleNotifierDrain();
+      }
+    });
+}
+
+function enqueueNotifierItems(ids: Array<string | number>): void {
   for (const id of ids) {
     const numericID = Number(id);
     if (Number.isInteger(numericID) && numericID > 0) {
@@ -195,13 +211,7 @@ function enqueueNotifierItems(ids: Array<string | number>): Promise<void> {
     }
   }
 
-  if (!notifierDrainPromise) {
-    notifierDrainPromise = drainNotifierQueue().finally(() => {
-      notifierDrainPromise = undefined;
-    });
-  }
-
-  return notifierDrainPromise;
+  scheduleNotifierDrain();
 }
 
 export function registerMDPINotifier(): void {
@@ -210,7 +220,7 @@ export function registerMDPINotifier(): void {
   }
 
   const observer = {
-    notify: async (
+    notify: (
       event: string,
       type: string,
       ids: Array<string | number>,
@@ -220,7 +230,7 @@ export function registerMDPINotifier(): void {
         type === "item" &&
         (event === "add" || event === "modify")
       ) {
-        await enqueueNotifierItems(ids);
+        enqueueNotifierItems(ids);
       }
     },
   };
