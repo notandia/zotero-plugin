@@ -26,7 +26,7 @@
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
-    "test": "echo \"No automated Zotero runtime tests yet\"",
+    "test": "zotero-plugin test --abort-on-fail --exit-on-finish",
     "update-deps": "npm update --save"
   },
   "dependencies": {
