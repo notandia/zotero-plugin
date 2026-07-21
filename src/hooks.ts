@@ -11,6 +11,7 @@ import {
 import {
   findMDPIReferences,
   registerReferenceReaderSection,
+  unregisterReferenceReaderSection,
 } from "./modules/referenceScanner";
 import { createZToolkit } from "./utils/ztoolkit";
 
@@ -177,6 +178,7 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
 
 function onShutdown(): void {
   unregisterMDPINotifier();
+  unregisterReferenceReaderSection();
   ztoolkit.unregisterAll();
   addon.data.initialized = false;
   addon.data.alive = false;
