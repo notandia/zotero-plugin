@@ -24,7 +24,9 @@ function getSelectedLibraryID(win: _ZoteroTypes.MainWindow): number {
     : Zotero.Libraries.userLibraryID;
 }
 
-function resultMessage(result: Awaited<ReturnType<typeof scanLibrary>>): string {
+function resultMessage(
+  result: Awaited<ReturnType<typeof scanLibrary>>,
+): string {
   const changes = [
     `${result.matched} MDPI item${result.matched === 1 ? "" : "s"}`,
     `${result.added} tag${result.added === 1 ? "" : "s"} added`,
@@ -38,9 +40,7 @@ function resultMessage(result: Awaited<ReturnType<typeof scanLibrary>>): string 
   return `${changes.join(", ")}. Filter with the “${FILTER_TAG}” tag.`;
 }
 
-async function scanCurrentLibrary(
-  win: _ZoteroTypes.MainWindow,
-): Promise<void> {
+async function scanCurrentLibrary(win: _ZoteroTypes.MainWindow): Promise<void> {
   const progress = new ztoolkit.ProgressWindow(addon.data.config.addonName, {
     closeOnClick: true,
     closeTime: -1,
@@ -69,9 +69,7 @@ async function scanCurrentLibrary(
   progress.startCloseTimer(7000);
 }
 
-async function scanSelectedItems(
-  win: _ZoteroTypes.MainWindow,
-): Promise<void> {
+async function scanSelectedItems(win: _ZoteroTypes.MainWindow): Promise<void> {
   const pane = getZoteroPane(win);
   const items = (pane?.getSelectedItems?.() || []) as Zotero.Item[];
 
@@ -150,9 +148,7 @@ async function onStartup(): Promise<void> {
   );
 }
 
-async function onMainWindowLoad(
-  win: _ZoteroTypes.MainWindow,
-): Promise<void> {
+async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   addon.data.ztoolkit = createZToolkit();
   registerMenus(win);
 }

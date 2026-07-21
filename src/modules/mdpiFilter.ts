@@ -35,9 +35,7 @@ function containsMDPIURL(value: string): boolean {
 }
 
 function containsMDPIPublisher(value: string): boolean {
-  return /\bMDPI\b|Multidisciplinary Digital Publishing Institute/i.test(
-    value,
-  );
+  return /\bMDPI\b|Multidisciplinary Digital Publishing Institute/i.test(value);
 }
 
 export function isMDPIItem(item: Zotero.Item): boolean {
