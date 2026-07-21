@@ -1,0 +1,6 @@
+
+> mdpi-filter-zotero@0.1.0 lint:check
+> prettier --check . && eslint .
+
+Checking formatting...
+All matched files use Prettier code style!
