@@ -4,7 +4,6 @@ const MDPI_DOI_PREFIX = "10.3390/";
 const MDPI_DOMAINS = ["mdpi.com", "mdpi.org"];
 const NCBI_ID_CONVERTER =
   "https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/";
-const NCBI_EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi";
 const NCBI_TIMEOUT_MS = 30000;
 const CONTEXT_RADIUS = 260;
 const READER_PANE_ID = `${config.addonRef}-reader-references`;
@@ -491,11 +490,9 @@ export async function fetchPMCReferenceMatches(
   if (cached) return cached;
 
   const promise = (async () => {
-    const url = new URL(NCBI_EFETCH);
-    url.searchParams.set("db", "pmc");
-    url.searchParams.set("id", normalized.replace(/^PMC/i, ""));
-    url.searchParams.set("retmode", "xml");
-    url.searchParams.set("tool", "MDPIFilterZotero");
+    const url = new URL(
+      `https://www.ebi.ac.uk/europepmc/webservices/rest/${normalized}/fullTextXML`,
+    );
     try {
       const response = await (Zotero.HTTP as any).request(
         "GET",
