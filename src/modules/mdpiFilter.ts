@@ -67,7 +67,7 @@ function isMDPIHostname(hostname: string): boolean {
 }
 
 function candidateURLs(value: string): string[] {
-  const matches = value.match(/https?:\/\/[^\s<>"']+/gi) || [];
+  const matches: string[] = value.match(/https?:\/\/[^\s<>"']+/gi) ?? [];
   const trimmed = value.trim();
   if (trimmed && !matches.includes(trimmed)) {
     matches.unshift(trimmed);
