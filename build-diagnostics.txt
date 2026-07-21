@@ -1,0 +1,21 @@
+
+> mdpi-filter-zotero@0.1.0 build
+> zotero-plugin build && tsc --noEmit
+
+ ℹ Building version 0.1.0 to .scaffold/build at 2026-07-21 12:14:37 in production mode.
+   → Preparing static assets
+
+  WARN  Pref key 'enable' in .scaffold/build/addon/content/preferences.xhtml is not found in prefs.js, skip prefixing it.
+
+
+  WARN  Pref key 'input' in .scaffold/build/addon/content/preferences.xhtml is not found in prefs.js, skip prefixing it.
+
+   → Bundling scripts
+   → Packing plugin
+ ✔ Build finished in 0.082 s.
+
+ ℹ New version of zotero-plugin-scaffold available!
+ ℹ Update: 0.6.0 → 0.8.7 (minor)
+
+src/modules/mdpiFilter.ts(72,36): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/modules/mdpiFilter.ts(73,21): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.

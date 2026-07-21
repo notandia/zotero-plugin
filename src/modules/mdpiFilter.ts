@@ -5,8 +5,7 @@ export const COLUMN_DATA_KEY = "mdpiFilterStatus";
 
 const MDPI_DOI_PREFIX = "10.3390/";
 const MDPI_DOMAINS = ["mdpi.com", "mdpi.org"];
-const NCBI_ID_CONVERTER =
-  "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/";
+const NCBI_ID_CONVERTER = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/";
 const NCBI_BATCH_SIZE = 200;
 const NCBI_TIMEOUT_MS = 15000;
 const STRONG_MDPI_JOURNALS = [
@@ -304,9 +303,7 @@ export async function detectMDPIItem(item: Zotero.Item): Promise<boolean> {
   ]);
   return (
     identifiers.pmids.some((id) => pmidResults.get(id) === true) ||
-    identifiers.pmcids.some(
-      (id) => pmcidResults.get(id.toUpperCase()) === true,
-    )
+    identifiers.pmcids.some((id) => pmcidResults.get(id.toUpperCase()) === true)
   );
 }
 
@@ -352,7 +349,10 @@ export async function syncItems(items: Zotero.Item[]): Promise<ScanResult> {
 
   for (const item of regularItems) {
     result.examined += 1;
-    const identifiers = identifiersByItem.get(item) || { pmids: [], pmcids: [] };
+    const identifiers = identifiersByItem.get(item) || {
+      pmids: [],
+      pmcids: [],
+    };
     const matches =
       localMatches.get(item) === true ||
       identifiers.pmids.some((id) => pmidResults.get(id) === true) ||

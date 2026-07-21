@@ -95,7 +95,10 @@ describe("MDPI Filter Zotero runtime", function () {
     assert(isMDPIItem(publisherItem), "MDPI publisher was not detected");
 
     const journalItem = new Zotero.Item("journalArticle");
-    journalItem.setField("publicationTitle", "International Journal of Molecular Sciences");
+    journalItem.setField(
+      "publicationTitle",
+      "International Journal of Molecular Sciences",
+    );
     assert(isMDPIItem(journalItem), "known MDPI journal was not detected");
 
     const originalRequest = Zotero.HTTP.request;
