@@ -8,6 +8,10 @@ import {
   syncItems,
   unregisterMDPINotifier,
 } from "./modules/mdpiFilter";
+import {
+  findMDPIReferences,
+  registerReferenceReaderSection,
+} from "./modules/referenceScanner";
 import { createZToolkit } from "./utils/ztoolkit";
 
 function logError(error: unknown): void {
@@ -140,12 +144,14 @@ async function onStartup(): Promise<void> {
   addon.api = {
     FILTER_TAG,
     detectMDPIItem,
+    findMDPIReferences,
     isMDPIItem,
     scanLibrary,
     syncItems,
   };
 
   registerMDPINotifier();
+  registerReferenceReaderSection();
 
   try {
     await registerMDPIColumn();
@@ -174,8 +180,6 @@ function onShutdown(): void {
   ztoolkit.unregisterAll();
   addon.data.initialized = false;
   addon.data.alive = false;
-  // @ts-ignore - Plugin instance is not typed
-  delete Zotero[addon.data.config.addonInstance];
 }
 
 export default {
