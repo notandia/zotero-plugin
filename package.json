@@ -1,8 +1,8 @@
 {
   "name": "mdpi-filter-zotero",
   "type": "module",
-  "version": "0.1.1",
-  "description": "Identify and filter MDPI publications in Zotero.",
+  "version": "0.1.2",
+  "description": "Identify MDPI publications and precisely highlight verified citations in Zotero.",
   "config": {
     "addonName": "MDPI Filter",
     "addonID": "mdpi-filter@mdpi-filter.github.io",
