@@ -1,0 +1,35 @@
+name: Adaptation diagnostics
+
+on:
+  push:
+    branches:
+      - feat/working-mdpi-filter
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/working-mdpi-filter
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Format and capture checks
+        run: |
+          npx prettier --write src/hooks.ts src/modules/mdpiFilter.ts test/mdpiFilter.spec.ts README.md .github/workflows/release.yml
+          npm run lint:check > lint-diagnostics.txt 2>&1 || true
+          npm run build > build-diagnostics.txt 2>&1 || true
+      - name: Commit diagnostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/hooks.ts src/modules/mdpiFilter.ts test/mdpiFilter.spec.ts README.md .github/workflows/release.yml lint-diagnostics.txt build-diagnostics.txt
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: format adaptation and capture diagnostics"
+          git push origin HEAD:feat/working-mdpi-filter
