@@ -481,38 +481,6 @@ export function getItemPMCID(item: Zotero.Item): string | undefined {
   return undefined;
 }
 
-async function lookupPMCMetadata(
-  pmcid: string,
-): Promise<{ pmid?: string; doi?: string } | undefined> {
-  const url = new URL(NCBI_ID_CONVERTER);
-  url.searchParams.set("ids", pmcid);
-  url.searchParams.set("idtype", "pmcid");
-  url.searchParams.set("format", "json");
-  url.searchParams.set("versions", "no");
-  url.searchParams.set("tool", "MDPIFilterZotero");
-  try {
-    const response = await (Zotero.HTTP as any).request("GET", url.toString(), {
-      anon: true,
-      errorDelayMax: 0,
-      responseType: "json",
-      successCodes: [200],
-      timeout: NCBI_TIMEOUT_MS,
-    });
-    const data =
-      response.response ||
-      (response.responseText ? JSON.parse(response.responseText) : undefined);
-    const record = Array.isArray(data?.records) ? data.records[0] : undefined;
-    if (!record) return undefined;
-    return {
-      pmid: record.pmid ? String(record.pmid) : undefined,
-      doi: record.doi ? cleanDOI(String(record.doi)) : undefined,
-    };
-  } catch (error) {
-    Zotero.logError(error instanceof Error ? error : new Error(String(error)));
-    return undefined;
-  }
-}
-
 function europePMCReferenceSnippet(reference: any): string {
   return normalizeWhitespace(
     [
@@ -531,10 +499,10 @@ function europePMCReferenceSnippet(reference: any): string {
 }
 
 async function fetchOrderedEuropePMCReferences(
-  pmid: string,
+  pmcid: string,
 ): Promise<MDPIReferenceMatch[] | undefined> {
   const url = new URL(
-    `https://www.ebi.ac.uk/europepmc/webservices/rest/MED/${pmid}/references`,
+    `https://www.ebi.ac.uk/europepmc/webservices/rest/PMC/${pmcid}/references`,
   );
   url.searchParams.set("page", "1");
   url.searchParams.set("pageSize", "1000");
@@ -638,9 +606,7 @@ export async function fetchPMCReferenceMatches(
       );
     }
 
-    const metadata = await lookupPMCMetadata(normalized);
-    if (!metadata?.pmid) return undefined;
-    return fetchOrderedEuropePMCReferences(metadata.pmid);
+    return fetchOrderedEuropePMCReferences(normalized);
   })();
   pmcReferenceCache.set(normalized, promise);
   return promise;
