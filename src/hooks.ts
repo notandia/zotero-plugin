@@ -9,7 +9,12 @@ import {
   unregisterMDPINotifier,
 } from "./modules/mdpiFilter";
 import {
+  fetchPMCReferenceMatches,
   findMDPIReferences,
+  findMDPIReferencesForItem,
+  getItemPMCID,
+  highlightMDPICitations,
+  parsePMCReferenceXML,
   registerReferenceReaderSection,
   unregisterReferenceReaderSection,
 } from "./modules/referenceScanner";
@@ -145,8 +150,13 @@ async function onStartup(): Promise<void> {
   addon.api = {
     FILTER_TAG,
     detectMDPIItem,
+    fetchPMCReferenceMatches,
     findMDPIReferences,
+    findMDPIReferencesForItem,
+    getItemPMCID,
+    highlightMDPICitations,
     isMDPIItem,
+    parsePMCReferenceXML,
     scanLibrary,
     syncItems,
   };
