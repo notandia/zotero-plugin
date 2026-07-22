@@ -6,68 +6,119 @@ on:
       - main
       - "feat/**"
       - "fix/**"
+      - "security/**"
   pull_request:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - name: Install deps
-        run: npm install
-      - name: Run lint
+      - name: Install dependencies
+        run: npm ci
+      - name: Run formatter and linter
         run: npm run lint:check
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Reject vulnerable picomatch versions
+        run: |
+          node - <<'NODE'
+          const lock = require('./package-lock.json');
+          const entry = lock.packages?.['node_modules/picomatch'];
+          if (!entry) process.exit(0);
+          const [major, minor, patch] = entry.version.split('.').map(Number);
+          if (major < 4 || (major === 4 && minor === 0 && patch < 4)) {
+            throw new Error(`picomatch remains vulnerable: ${entry.version}`);
+          }
+          NODE
 
   build:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - name: Install deps
-        run: npm install
-      - name: Run build
+      - name: Install dependencies
+        run: npm ci
+      - name: Build XPI
         run: npm run build
+      - name: Validate package
+        shell: bash
+        run: |
+          set -euo pipefail
+          XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
+          test -n "$XPI"
+          unzip -tq "$XPI"
+          unzip -p "$XPI" manifest.json > /tmp/manifest.json
+          python - <<'PY'
+          import json
+          package = json.load(open('package.json'))
+          manifest = json.load(open('/tmp/manifest.json'))
+          assert manifest['version'] == package['version'], (manifest, package['version'])
+          assert manifest['name'] == package['config']['addonName'], manifest
+          PY
+          sha256sum "$XPI" | tee .scaffold/build/SHA256SUMS
       - name: Upload build result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: build-result
           path: .scaffold/build
+          if-no-files-found: error
+          retention-days: 14
 
   zotero-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install system dependencies
         run: |
@@ -80,12 +131,15 @@ jobs:
             libx11-xcb1 \
             libasound2t64
       - name: Install npm dependencies
-        run: npm install
-      - name: Download Zotero 9.0.6
+        run: npm ci
+      - name: Download and verify Zotero 9.0.6
+        shell: bash
         run: |
+          set -euo pipefail
           curl --fail --location --retry 3 \
             "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6" \
             --output zotero.tar.xz
+          echo "0db6e8f94bd0d84e862e6ef5c3e217030e173c0cd3c6dfbc836252c650fea3dd  zotero.tar.xz" | sha256sum --check --strict
           mkdir zotero-runtime
           tar -xJf zotero.tar.xz -C zotero-runtime
           ZOTERO_BIN="$(find "$GITHUB_WORKSPACE/zotero-runtime" -type f -name zotero -perm -u+x | head -n 1)"
@@ -95,12 +149,15 @@ jobs:
           echo "ZOTERO_PLUGIN_DATA_DIR=$RUNNER_TEMP/zotero-data" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/zotero-profile" "$RUNNER_TEMP/zotero-data"
       - name: Run Zotero runtime tests
-        run: xvfb-run --auto-servernum npm test 2>&1 | tee runtime-test-output.txt
-      - name: Validate runtime test result
-        run: grep -Fq "Test run completed - 8 passed" runtime-test-output.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run --auto-servernum npm test 2>&1 | tee runtime-test-output.txt
       - name: Upload runtime test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: zotero-runtime-test-report
           path: runtime-test-output.txt
+          if-no-files-found: warn
+          retention-days: 14

@@ -65,6 +65,14 @@ describe("MDPI Filter Zotero runtime", function () {
       plugin.api.findMDPIReferences,
       "reader reference scanner API was not exposed",
     );
+    assert(
+      plugin.api.parsePMCReferenceXML,
+      "structured PMC parser API was not exposed",
+    );
+    assert(
+      plugin.api.highlightMDPICitations,
+      "citation highlighter API was not exposed",
+    );
 
     const win = Zotero.getMainWindow();
     assert(win, "Zotero main window is unavailable");
@@ -154,6 +162,85 @@ describe("MDPI Filter Zotero runtime", function () {
     );
   });
 
+  it("parses exact JATS references and never infers MDPI from journal capitalization", async function () {
+    const xml = `<?xml version="1.0"?>
+      <article xmlns:xlink="http://www.w3.org/1999/xlink">
+        <body>
+          <p>Prior work <sup>[<xref ref-type="bibr" rid="R124">124</xref>]</sup>
+          and grouped work [<xref ref-type="bibr" rid="R123">123</xref>,
+          <xref ref-type="bibr" rid="R124">124</xref>].</p>
+        </body>
+        <back>
+          <ref-list>
+            <ref id="R123">
+              <label>123</label>
+              <element-citation>
+                <article-title>A non-MDPI Nutrients-looking title</article-title>
+                <source>NUTRIENTS</source>
+              </element-citation>
+            </ref>
+            <ref id="R124">
+              <label>124.</label>
+              <element-citation>
+                <article-title>Effects of glycerol and creatine hyperhydration</article-title>
+                <source>Nutrients</source>
+                <pub-id pub-id-type="doi">10.3390/nu4091171</pub-id>
+              </element-citation>
+            </ref>
+          </ref-list>
+        </back>
+      </article>`;
+    const matches = await getPlugin().api.parsePMCReferenceXML(xml);
+    assert(
+      matches.length === 1,
+      "journal capitalization caused a false positive",
+    );
+    assert(matches[0].referenceLabel === "124", "reference label was lost");
+    assert(matches[0].doi === "10.3390/nu4091171", "structured DOI was lost");
+    assert(
+      matches[0].citationMarkers.some(
+        (marker: any) => marker.safe && marker.text === "[124]",
+      ),
+      "exact single citation marker was not extracted",
+    );
+    assert(
+      matches[0].citationMarkers.some(
+        (marker: any) => marker.safe && marker.text === "[123, 124]",
+      ),
+      "exact grouped citation marker was not extracted",
+    );
+  });
+
+  it("honors the network lookup opt-out for reader scans", async function () {
+    const pref = "extensions.zotero.mdpifilter.ncbiApiEnabled";
+    const originalRequest = Zotero.HTTP.request;
+    let requestCount = 0;
+    try {
+      Zotero.Prefs.set(pref, false, true);
+      Zotero.HTTP.request = async () => {
+        requestCount += 1;
+        throw new Error("network request should have been blocked");
+      };
+      const local = await getPlugin().api.findMDPIReferences(
+        "References\n1. Example. PMCID: PMC11172733",
+      );
+      assert(local.length === 0, "disabled lookup returned a remote match");
+      const structured =
+        await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
+      assert(
+        structured === undefined,
+        "disabled structured lookup returned remote data",
+      );
+      assert(
+        requestCount === 0,
+        "network opt-out still allowed an HTTP request",
+      );
+    } finally {
+      Zotero.HTTP.request = originalRequest;
+      Zotero.Prefs.set(pref, true, true);
+    }
+  });
+
   it("resolves a real PMC reference through the current NCBI endpoint", async function () {
     this.timeout(30000);
     const matches = await getPlugin().api.findMDPIReferences(
@@ -162,6 +249,100 @@ describe("MDPI Filter Zotero runtime", function () {
     assert(
       matches.some((entry: any) => entry.pmcid === "PMC11172733"),
       "live PMCID-to-MDPI resolution failed",
+    );
+  });
+
+  it("finds reference 124 in the real PMC5469049 JATS document", async function () {
+    this.timeout(60000);
+    const matches =
+      await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
+    assert(matches, "PMC EFetch returned no structured references");
+    const reference = matches.find(
+      (entry: any) =>
+        entry.referenceLabel === "124" && entry.doi === "10.3390/nu4091171",
+    );
+    assert(
+      reference,
+      "structured PMC reference 124 was not recognized as MDPI",
+    );
+  });
+
+  it("highlights only geometrically verified citation markers", async function () {
+    const positions: Record<string, any[]> = {
+      "[124]": [{ pageIndex: 0, rects: [[10, 10, 35, 20]] }],
+      "[123, 124]": [{ pageIndex: 0, rects: [[50, 10, 110, 20]] }],
+      "124": [
+        { pageIndex: 0, rects: [[90, 10, 110, 20]] },
+        { pageIndex: 0, rects: [[200, 200, 220, 210]] },
+      ],
+    };
+    let currentQuery = "";
+    const created: any[] = [];
+    const controller = {
+      _pdfDocument: { numPages: 1 },
+      _visitedPagesCount: 1,
+      _pendingFindMatches: new Set(),
+      _findTimeout: null,
+      pageMatches: [[]],
+      find(state: any) {
+        currentQuery = state.query;
+        this._visitedPagesCount = 1;
+        this.pageMatches = [new Array((positions[currentQuery] || []).length)];
+      },
+      async getMatchPositionsAsync() {
+        return positions[currentQuery] || [];
+      },
+    };
+    const reader = {
+      _initPromise: Promise.resolve(),
+      _iframeWindow: {},
+      _internalReader: {
+        _primaryView: { _findController: controller },
+        _annotationManager: {
+          addAnnotation(annotation: any) {
+            created.push(annotation);
+            return annotation;
+          },
+        },
+      },
+    };
+    const attachment = {
+      id: 999,
+      attachmentReaderType: "pdf",
+      isAttachment: () => true,
+      getAnnotations: () => [],
+    };
+    const result = await getPlugin().api.highlightMDPICitations(
+      attachment,
+      [
+        {
+          key: "pmc-ref:R124",
+          referenceId: "R124",
+          referenceLabel: "124",
+          doi: "10.3390/nu4091171",
+          snippet: "Reference 124",
+          source: "pmc-jats",
+          citationMarkers: [
+            { text: "[124]", safe: true },
+            { text: "[123, 124]", safe: true },
+            { text: "124", safe: false },
+          ],
+        },
+      ],
+      reader,
+    );
+    assert(
+      result.created === 2,
+      "verified citation highlights were not created",
+    );
+    assert(result.skippedUnsafe === 1, "ambiguous bare marker was not skipped");
+    assert(
+      created.length === 2,
+      "an unrelated occurrence of 124 was highlighted",
+    );
+    assert(
+      created.every((annotation) => annotation.color === "#e2211c"),
+      "citation highlights did not use MDPI red",
     );
   });
 

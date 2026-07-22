@@ -1,8 +1,8 @@
 {
   "name": "mdpi-filter-zotero",
   "type": "module",
-  "version": "0.1.1",
-  "description": "Identify and filter MDPI publications in Zotero.",
+  "version": "0.1.2",
+  "description": "Identify MDPI publications and precisely highlight verified citations in Zotero.",
   "config": {
     "addonName": "MDPI Filter",
     "addonID": "mdpi-filter@mdpi-filter.github.io",
@@ -20,6 +20,9 @@
   },
   "homepage": "https://github.com/mdpi-filter/mdpi-filter-zotero#readme",
   "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=22.8.0"
+  },
   "scripts": {
     "start": "zotero-plugin serve",
     "build": "zotero-plugin build && tsc --noEmit",
@@ -30,7 +33,7 @@
     "update-deps": "npm update --save"
   },
   "dependencies": {
-    "zotero-plugin-toolkit": "^5.0.0"
+    "zotero-plugin-toolkit": "5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.1",
@@ -39,8 +42,11 @@
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.34.0",
-    "zotero-plugin-scaffold": "^0.6.0",
+    "zotero-plugin-scaffold": "^0.8.7",
     "zotero-types": "^4.0.3"
+  },
+  "overrides": {
+    "adm-zip": "0.6.0"
   },
   "prettier": {
     "printWidth": 80,

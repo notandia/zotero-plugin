@@ -9,6 +9,8 @@ export type FluentMessageId =
   | 'item-section-example2-button-tooltip'
   | 'item-section-example2-head-text'
   | 'item-section-example2-sidenav-tooltip'
+  | 'mdpifilter-reader-references-header'
+  | 'mdpifilter-reader-references-sidenav'
   | 'menuitem-filemenulabel'
   | 'menuitem-label'
   | 'menuitem-submenulabel'
