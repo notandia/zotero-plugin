@@ -120,7 +120,7 @@ jobs:
           ''')
           scanner.write_text(text[:start] + replacement + text[end:])
 
-          replace_once("test/mdpiFilter.spec.ts", "                <label>124</label>", "                <label>124.</label>")
+          replace_once("test/mdpiFilter.spec.ts", "<label>124</label>", "<label>124.</label>")
           test = Path("test/mdpiFilter.spec.ts")
           text = test.read_text()
           marker = '  it("resolves a real PMC reference through the current NCBI endpoint", async function () {'
