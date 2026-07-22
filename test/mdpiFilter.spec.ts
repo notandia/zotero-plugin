@@ -216,7 +216,7 @@ describe("MDPI Filter Zotero runtime", function () {
     const originalRequest = Zotero.HTTP.request;
     let requestCount = 0;
     try {
-      Zotero.Prefs.set(pref, false);
+      Zotero.Prefs.set(pref, false, true);
       Zotero.HTTP.request = async () => {
         requestCount += 1;
         throw new Error("network request should have been blocked");
@@ -237,7 +237,7 @@ describe("MDPI Filter Zotero runtime", function () {
       );
     } finally {
       Zotero.HTTP.request = originalRequest;
-      Zotero.Prefs.set(pref, true);
+      Zotero.Prefs.set(pref, true, true);
     }
   });
 
