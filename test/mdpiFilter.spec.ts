@@ -180,7 +180,7 @@ describe("MDPI Filter Zotero runtime", function () {
               </element-citation>
             </ref>
             <ref id="R124">
-              <label>124</label>
+              <label>124.</label>
               <element-citation>
                 <article-title>Effects of glycerol and creatine hyperhydration</article-title>
                 <source>Nutrients</source>
@@ -209,6 +209,36 @@ describe("MDPI Filter Zotero runtime", function () {
       ),
       "exact grouped citation marker was not extracted",
     );
+  });
+
+  it("honors the network lookup opt-out for reader scans", async function () {
+    const pref = "extensions.zotero.mdpifilter.ncbiApiEnabled";
+    const originalRequest = Zotero.HTTP.request;
+    let requestCount = 0;
+    try {
+      Zotero.Prefs.set(pref, false);
+      Zotero.HTTP.request = async () => {
+        requestCount += 1;
+        throw new Error("network request should have been blocked");
+      };
+      const local = await getPlugin().api.findMDPIReferences(
+        "References\n1. Example. PMCID: PMC11172733",
+      );
+      assert(local.length === 0, "disabled lookup returned a remote match");
+      const structured =
+        await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
+      assert(
+        structured === undefined,
+        "disabled structured lookup returned remote data",
+      );
+      assert(
+        requestCount === 0,
+        "network opt-out still allowed an HTTP request",
+      );
+    } finally {
+      Zotero.HTTP.request = originalRequest;
+      Zotero.Prefs.set(pref, true);
+    }
   });
 
   it("resolves a real PMC reference through the current NCBI endpoint", async function () {

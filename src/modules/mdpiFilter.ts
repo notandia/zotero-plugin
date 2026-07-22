@@ -199,7 +199,7 @@ function recordIsMDPI(record: any): boolean {
   );
 }
 
-function ncbiLookupEnabled(): boolean {
+export function ncbiLookupEnabled(): boolean {
   try {
     return (
       Zotero.Prefs.get(`${config.prefsPrefix}.ncbiApiEnabled`, true) !== false
