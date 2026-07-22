@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python - <<'PY' 2>&1 | tee prepare-source.log
           from pathlib import Path
           from textwrap import dedent
 
@@ -38,20 +38,13 @@ jobs:
               file = Path(path)
               text = file.read_text()
               count = text.count(old)
+              print(f"CHECK {path}: {count} occurrence(s): {old[:100]!r}")
               if count != 1:
                   raise SystemExit(f"{path}: expected one occurrence, found {count}: {old[:100]!r}")
               file.write_text(text.replace(old, new, 1))
 
-          replace_once(
-              "src/modules/mdpiFilter.ts",
-              "function ncbiLookupEnabled(): boolean {",
-              "export function ncbiLookupEnabled(): boolean {",
-          )
-          replace_once(
-              "src/modules/referenceScanner.ts",
-              'import { config } from "../../package.json";\n',
-              'import { config } from "../../package.json";\nimport { ncbiLookupEnabled } from "./mdpiFilter";\n',
-          )
+          replace_once("src/modules/mdpiFilter.ts", "function ncbiLookupEnabled(): boolean {", "export function ncbiLookupEnabled(): boolean {")
+          replace_once("src/modules/referenceScanner.ts", 'import { config } from "../../package.json";\n', 'import { config } from "../../package.json";\nimport { ncbiLookupEnabled } from "./mdpiFilter";\n')
           replace_once(
               "src/modules/referenceScanner.ts",
               '\nfunction getField(item: Zotero.Item | undefined, field: string): string {',
@@ -65,11 +58,7 @@ jobs:
 
               function getField(item: Zotero.Item | undefined, field: string): string {'''),
           )
-          replace_once(
-              "src/modules/referenceScanner.ts",
-              "  if (!normalized.length) return result;",
-              "  if (!normalized.length || !ncbiLookupEnabled()) return result;",
-          )
+          replace_once("src/modules/referenceScanner.ts", "  if (!normalized.length) return result;", "  if (!normalized.length || !ncbiLookupEnabled()) return result;")
           replace_once(
               "src/modules/referenceScanner.ts",
               '      referenceLabel: directChildText(reference, "label") || undefined,',
@@ -80,8 +69,7 @@ jobs:
           text = scanner.read_text()
           start = text.index("function europePMCReferenceSnippet")
           end = text.index("export async function fetchPMCReferenceMatches", start)
-          text = text[:start] + text[end:]
-          scanner.write_text(text)
+          scanner.write_text(text[:start] + text[end:])
 
           scanner = Path("src/modules/referenceScanner.ts")
           text = scanner.read_text()
@@ -121,9 +109,7 @@ jobs:
                 if (!xmlText.trim()) return undefined;
                 return parsePMCReferenceXML(xmlText);
               } catch (error) {
-                Zotero.logError(
-                  error instanceof Error ? error : new Error(String(error)),
-                );
+                Zotero.logError(error instanceof Error ? error : new Error(String(error)));
                 return undefined;
               }
             })();
@@ -134,11 +120,7 @@ jobs:
           ''')
           scanner.write_text(text[:start] + replacement + text[end:])
 
-          replace_once(
-              "test/mdpiFilter.spec.ts",
-              "                <label>124</label>",
-              "                <label>124.</label>",
-          )
+          replace_once("test/mdpiFilter.spec.ts", "                <label>124</label>", "                <label>124.</label>")
           test = Path("test/mdpiFilter.spec.ts")
           text = test.read_text()
           marker = '  it("resolves a real PMC reference through the current NCBI endpoint", async function () {'
@@ -157,12 +139,8 @@ jobs:
                   "References\\n1. Example. PMCID: PMC11172733",
                 );
                 assert(local.length === 0, "disabled lookup returned a remote match");
-                const structured =
-                  await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
-                assert(
-                  structured === undefined,
-                  "disabled structured lookup returned remote data",
-                );
+                const structured = await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
+                assert(structured === undefined, "disabled structured lookup returned remote data");
                 assert(requestCount === 0, "network opt-out still allowed an HTTP request");
               } finally {
                 Zotero.HTTP.request = originalRequest;
@@ -171,10 +149,20 @@ jobs:
             });
 
           ''')
+          print(f"CHECK test insertion marker: {text.count(marker)} occurrence(s)")
           if text.count(marker) != 1:
               raise SystemExit("test insertion marker not found exactly once")
           test.write_text(text.replace(marker, insertion + marker, 1))
           PY
+
+      - name: Upload source preparation report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: prepare-source-report
+          path: prepare-source.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Update supported toolchain and lockfile
         shell: bash
