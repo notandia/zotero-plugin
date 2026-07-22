@@ -177,12 +177,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run lint:fix
-          npm ci
-          npm audit --audit-level=high
-          npm run lint:check
-          npm run build
-          node - <<'NODE'
+          {
+            npm run lint:fix
+            npm ci
+            npm audit --audit-level=high
+            npm run lint:check
+            npm run build
+            node - <<'NODE'
           const lock = require('./package-lock.json');
           const entry = lock.packages?.['node_modules/picomatch'];
           if (entry) {
@@ -192,6 +193,16 @@ jobs:
             }
           }
           NODE
+          } 2>&1 | tee hardening-validation.log
+
+      - name: Upload hardening validation report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: hardening-validation-report
+          path: hardening-validation.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Commit source-only hardening
         shell: bash
