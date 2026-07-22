@@ -10,6 +10,7 @@ on:
       - main
   schedule:
     - cron: "17 4 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,4 +34,17 @@ jobs:
           languages: javascript-typescript
           queries: security-extended
       - name: Perform CodeQL analysis
+        id: analyze
         uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          output: codeql-results
+          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+          upload-database: false
+      - name: Preserve private-repository SARIF
+        if: github.event.repository.private
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: codeql-sarif
+          path: codeql-results
+          if-no-files-found: error
+          retention-days: 14
