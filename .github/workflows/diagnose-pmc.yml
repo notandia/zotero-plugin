@@ -46,6 +46,15 @@ jobs:
               print(path.name, len(data), data[:200])
           PY
 
+      - name: Record Zotero 9.0.6 archive checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            'https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64&version=9.0.6' \
+            --output zotero.tar.xz
+          sha256sum zotero.tar.xz | tee diagnostics/zotero-9.0.6-linux-x86_64.sha256
+
       - name: Upload diagnostics
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
