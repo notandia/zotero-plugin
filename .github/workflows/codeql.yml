@@ -33,13 +33,44 @@ jobs:
         with:
           languages: javascript-typescript
           queries: security-extended
-      - name: Perform CodeQL analysis
+      - name: Perform local CodeQL analysis
         id: analyze
+        continue-on-error: true
         uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           output: codeql-results
-          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+          upload: never
           upload-database: false
+      - name: Validate SARIF analysis result
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(Path("codeql-results").rglob("*.sarif"))
+          if not files:
+              raise SystemExit("CodeQL produced no SARIF result")
+
+          for path in files:
+              document = json.loads(path.read_text(encoding="utf-8"))
+              if document.get("version") != "2.1.0":
+                  raise SystemExit(f"Unexpected SARIF version in {path}")
+              runs = document.get("runs") or []
+              if not runs:
+                  raise SystemExit(f"No SARIF runs in {path}")
+              for run in runs:
+                  for invocation in run.get("invocations") or []:
+                      if invocation.get("executionSuccessful") is False:
+                          raise SystemExit(f"CodeQL reported an unsuccessful invocation in {path}")
+              print(f"Validated {path} with {sum(len(run.get('results') or []) for run in runs)} result(s)")
+          PY
+      - name: Upload SARIF to public code scanning
+        if: ${{ !github.event.repository.private }}
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: codeql-results
       - name: Preserve private-repository SARIF
         if: github.event.repository.private
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
