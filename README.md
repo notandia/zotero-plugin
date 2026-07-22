@@ -19,11 +19,12 @@ The plugin adapts the portable logic from [MDPI Filter for Chrome](https://githu
 - Adds a sortable **MDPI** item-table column.
 - Adds library and selected-item scan commands.
 - Adds an **MDPI References** section in Zotero's reader.
-- For PMC papers, retrieves structured references through NCBI EFetch and identifies MDPI references from exact DOI, domain, PMID, or PMCID evidence.
-- Creates red Zotero highlights for citation markers only when they can be mapped exactly to a verified structured PMC reference.
+- For PMC papers, retrieves public full-text JATS XML from Europe PMC and identifies MDPI references from exact DOI, domain, PMID, or PMCID evidence.
+- Normalizes structured reference labels such as `124.` to the exact citation number `124`.
+- Creates red Zotero highlights only when a verified structured reference can be mapped to an exact PDF citation marker.
 - In grouped citations such as `[123, 124]`, highlights only the verified number `124`.
 - Deliberately skips ambiguous bare numbers when their position cannot be proven safely.
-- Never classifies a reference merely because a journal name, title, or capitalization resembles an MDPI publication.
+- Never classifies a reader reference merely because a journal name, title, or capitalization resembles an MDPI publication.
 
 ## Installation
 
@@ -77,42 +78,56 @@ The reader scanner uses these signals:
 2. Genuine MDPI domain.
 3. PMID or PMCID that resolves to an MDPI DOI.
 
-Journal-title text alone is never sufficient for a reader-reference match. Citation highlighting additionally requires an exact structured reference label and an exact PDF search rectangle. Ambiguous unbracketed citation numbers are skipped rather than guessed.
+Journal-title text alone is never sufficient for a reader-reference match. Citation highlighting additionally requires an exact structured reference label and an exact PDF search rectangle. Ambiguous unbracketed citation numbers are skipped rather than guessed. Ordered reference-list APIs that do not preserve the article's bibliography labels are not used for highlighting.
 
 ## Privacy
 
 Local DOI, domain, publisher, journal, and PDF-text checks stay on the computer.
 
-When identifiers need resolution, the plugin sends only public PMID or PMCID values to NCBI. For a PMC reader document, the plugin sends its public PMCID to NCBI EFetch to retrieve the article's public JATS XML. It does not upload the PDF, title, authors, notes, collections, annotations, or other Zotero data.
+When identifiers need resolution, the plugin sends only public PMID or PMCID values to NCBI. For a PMC reader document, it sends only the public PMCID to Europe PMC to retrieve the article's public JATS XML. It does not upload the PDF, title, authors, notes, collections, annotations, or other Zotero data.
 
-NCBI identifier lookups can be disabled in Zotero's Advanced Config Editor by setting:
+All network-assisted detection can be disabled in Zotero's Advanced Config Editor by setting:
 
 `extensions.zotero.mdpifilter.ncbiApiEnabled` to `false`.
 
-Disabling that preference also prevents structured PMC retrieval.
+The preference is checked before identifier resolution, before structured PMC retrieval, and before cached structured results are used.
 
-## Tests
+## Tests and supply-chain controls
 
-CI builds the `.xpi`, runs formatting and TypeScript checks, and launches the plugin in Zotero 9. Runtime tests cover:
+CI uses read-only repository permissions, pinned GitHub Action revisions, Node.js 24, deterministic `npm ci` installs, dependency auditing, TypeScript validation, XPI ZIP-integrity checks, and Zotero runtime tests. The downloaded Zotero 9.0.6 test runtime is verified against a pinned SHA-256 checksum.
+
+Runtime tests cover:
 
 - startup and menus
 - item detection and spoofed-domain rejection
 - bibliography-only local scanning
 - exact JATS parsing without journal-title inference
+- punctuation-normalized labels such as `124.`
+- complete network opt-out with zero HTTP requests
 - live ID Converter resolution
 - live `PMC5469049` recognition of reference 124 as `10.3390/nu4091171`
 - grouped-citation geometry and unrelated-number rejection
 - tag synchronization, notifier behavior, and library scanning
 
+Versioned release tags create non-overwriting XPI assets, SHA-256 checksum files, a Zotero update manifest containing the XPI hash, and a GitHub artifact provenance attestation.
+
 ## Development
 
+Use Node.js 22.8 or later. Node.js 24 is used in CI.
+
 ```bash
-npm install
+npm ci
+npm run lint:check
+npm audit --audit-level=high
 npm run build
 npm test
 ```
 
 The production `.xpi` is generated in `.scaffold/build`.
+
+## Security
+
+Please report suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
