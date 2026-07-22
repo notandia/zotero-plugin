@@ -2,67 +2,113 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate and package
+      - name: Validate source and dependencies
         run: |
+          npm audit --audit-level=high
           npm run lint:check
-          set +e
-          npx zotero-plugin build
-          SCAFFOLD_STATUS=$?
-          set -e
-          echo "zotero-plugin build exit status: $SCAFFOLD_STATUS"
-          npx tsc --noEmit
-          XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
-          test -n "$XPI"
-          unzip -tq "$XPI"
-          unzip -p "$XPI" manifest.json > /tmp/mdpi-filter-manifest.json
-          python - <<'PY'
+
+      - name: Validate tag and build XPI
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME}"
+          test "$TAG" = "v${VERSION}"
+          npm run build
+
+          SOURCE_XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
+          test -n "$SOURCE_XPI"
+          ASSET="mdpi-filter-zotero-${TAG}.xpi"
+          cp "$SOURCE_XPI" "$ASSET"
+          unzip -tq "$ASSET"
+          HASH="$(sha256sum "$ASSET" | cut -d' ' -f1)"
+          printf '%s  %s\n' "$HASH" "$ASSET" > "${ASSET}.sha256"
+
+          python - "$VERSION" "$TAG" "$ASSET" "$HASH" <<'PY'
           import json
-          with open('/tmp/mdpi-filter-manifest.json') as file:
-              manifest = json.load(file)
-          assert manifest['version'] == '0.1.2', manifest
-          assert manifest['name'] == 'MDPI Filter', manifest
+          import sys
+
+          version, tag, asset, digest = sys.argv[1:]
+          addon_id = "mdpi-filter@mdpi-filter.github.io"
+          base = "https://github.com/mdpi-filter/mdpi-filter-zotero/releases/download"
+          update = {
+              "addons": {
+                  addon_id: {
+                      "updates": [
+                          {
+                              "version": version,
+                              "update_link": f"{base}/{tag}/{asset}",
+                              "update_hash": f"sha256:{digest}",
+                              "applications": {
+                                  "zotero": {
+                                      "strict_min_version": "7.0",
+                                      "strict_max_version": "9.*",
+                                  }
+                              },
+                          }
+                      ]
+                  }
+              }
+          }
+          with open("update.json", "w", encoding="utf-8") as file:
+              json.dump(update, file, indent=2)
+              file.write("\n")
           PY
 
-      - name: Publish XPI release
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+          echo "checksum=${ASSET}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Attest XPI provenance
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: ${{ steps.package.outputs.asset }}
+
+      - name: Publish immutable release assets
         env:
           GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.package.outputs.asset }}
+          CHECKSUM: ${{ steps.package.outputs.checksum }}
+        shell: bash
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          TAG="v${VERSION}"
-          XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
-          test -n "$XPI"
-          ASSET="mdpi-filter-zotero-${TAG}.xpi"
-
+          set -euo pipefail
+          TAG="$GITHUB_REF_NAME"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$XPI#$ASSET" --clobber
-          else
-            gh release create "$TAG" "$XPI#$ASSET" \
-              --target "$GITHUB_SHA" \
-              --title "MDPI Filter for Zotero ${TAG}" \
-              --generate-notes
+            echo "Release $TAG already exists; refusing to overwrite immutable assets." >&2
+            exit 1
           fi
+          gh release create "$TAG" \
+            "$ASSET" \
+            "$CHECKSUM" \
+            update.json \
+            --verify-tag \
+            --target "$GITHUB_SHA" \
+            --title "MDPI Filter for Zotero $TAG" \
+            --generate-notes
