@@ -1,0 +1,226 @@
+name: Prepare security source fixes
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.head_ref == 'security/public-ready'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout hardening branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: security/public-ready
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply source and regression-test fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one occurrence, found {count}: {old[:80]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/modules/mdpiFilter.ts",
+              "function ncbiLookupEnabled(): boolean {",
+              "export function ncbiLookupEnabled(): boolean {",
+          )
+
+          replace_once(
+              "src/modules/referenceScanner.ts",
+              'import { config } from "../../package.json";\n',
+              'import { config } from "../../package.json";\nimport { ncbiLookupEnabled } from "./mdpiFilter";\n',
+          )
+
+          replace_once(
+              "src/modules/referenceScanner.ts",
+              '''function normalizeWhitespace(value: string): string {
+            return value.replace(/\\s+/g, " ").trim();
+          }
+          ''',
+              '''function normalizeWhitespace(value: string): string {
+            return value.replace(/\\s+/g, " ").trim();
+          }
+
+          function normalizeReferenceLabel(value: string): string | undefined {
+            const normalized = normalizeWhitespace(value);
+            const match = normalized.match(/^[[(]?\\s*(\\d+[A-Za-z]?)\\s*(?:[.)\\]])?$/);
+            return match?.[1];
+          }
+          ''',
+          )
+
+          replace_once(
+              "src/modules/referenceScanner.ts",
+              "  if (!normalized.length) return result;",
+              "  if (!normalized.length || !ncbiLookupEnabled()) return result;",
+          )
+
+          replace_once(
+              "src/modules/referenceScanner.ts",
+              '      referenceLabel: directChildText(reference, "label") || undefined,',
+              '      referenceLabel: normalizeReferenceLabel(\n        directChildText(reference, "label"),\n      ),',
+          )
+
+          scanner = Path("src/modules/referenceScanner.ts")
+          text = scanner.read_text()
+          start = text.index("function europePMCReferenceSnippet")
+          end = text.index("export async function fetchPMCReferenceMatches", start)
+          text = text[:start] + text[end:]
+          scanner.write_text(text)
+
+          scanner = Path("src/modules/referenceScanner.ts")
+          text = scanner.read_text()
+          start = text.index("export async function fetchPMCReferenceMatches")
+          end = text.index("export async function findMDPIReferences", start)
+          replacement = '''export async function fetchPMCReferenceMatches(
+            pmcid: string,
+          ): Promise<MDPIReferenceMatch[] | undefined> {
+            const normalized = extractPMCIDFromText(pmcid);
+            if (!normalized || !ncbiLookupEnabled()) return undefined;
+            const cached = pmcReferenceCache.get(normalized);
+            if (cached) return cached;
+
+            const promise = (async () => {
+              const fullTextURL = new URL(
+                `https://www.ebi.ac.uk/europepmc/webservices/rest/${normalized}/fullTextXML`,
+              );
+              try {
+                const response = await (Zotero.HTTP as any).request(
+                  "GET",
+                  fullTextURL.toString(),
+                  {
+                    anon: true,
+                    errorDelayMax: 0,
+                    responseType: "text",
+                    successCodes: [200, 404],
+                    timeout: NCBI_TIMEOUT_MS,
+                  },
+                );
+                const xmlText =
+                  typeof response.responseText === "string"
+                    ? response.responseText
+                    : typeof response.response === "string"
+                      ? response.response
+                      : "";
+                if (!xmlText.trim()) return undefined;
+                return parsePMCReferenceXML(xmlText);
+              } catch (error) {
+                Zotero.logError(
+                  error instanceof Error ? error : new Error(String(error)),
+                );
+                return undefined;
+              }
+            })();
+            pmcReferenceCache.set(normalized, promise);
+            return promise;
+          }
+
+          '''
+          scanner.write_text(text[:start] + replacement + text[end:])
+
+          replace_once(
+              "test/mdpiFilter.spec.ts",
+              "                <label>124</label>",
+              "                <label>124.</label>",
+          )
+
+          test = Path("test/mdpiFilter.spec.ts")
+          text = test.read_text()
+          marker = '''  it("resolves a real PMC reference through the current NCBI endpoint", async function () {'''
+          insertion = '''  it("honors the network lookup opt-out for reader scans", async function () {
+            const pref = "extensions.zotero.mdpifilter.ncbiApiEnabled";
+            const originalRequest = Zotero.HTTP.request;
+            let requestCount = 0;
+            try {
+              Zotero.Prefs.set(pref, false);
+              Zotero.HTTP.request = async () => {
+                requestCount += 1;
+                throw new Error("network request should have been blocked");
+              };
+              const local = await getPlugin().api.findMDPIReferences(
+                "References\\n1. Example. PMCID: PMC11172733",
+              );
+              assert(local.length === 0, "disabled lookup returned a remote match");
+              const structured =
+                await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
+              assert(
+                structured === undefined,
+                "disabled structured lookup returned remote data",
+              );
+              assert(requestCount === 0, "network opt-out still allowed an HTTP request");
+            } finally {
+              Zotero.HTTP.request = originalRequest;
+              Zotero.Prefs.set(pref, true);
+            }
+          });
+
+          '''
+          if text.count(marker) != 1:
+              raise SystemExit("test insertion marker not found exactly once")
+          test.write_text(text.replace(marker, insertion + marker, 1))
+          PY
+
+      - name: Update supported toolchain and lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pkg set 'engines.node=>=22.8.0'
+          npm install --save-dev zotero-plugin-scaffold@latest
+          npm update
+          npm audit fix --package-lock-only || true
+
+      - name: Validate prepared source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint:fix
+          npm ci
+          npm audit --audit-level=high
+          npm run lint:check
+          npm run build
+          node - <<'NODE'
+          const lock = require('./package-lock.json');
+          const entry = lock.packages?.['node_modules/picomatch'];
+          if (entry) {
+            const parts = entry.version.split('.').map(Number);
+            if (parts[0] < 4 || (parts[0] === 4 && (parts[1] < 0 || (parts[1] === 0 && parts[2] < 4)))) {
+              throw new Error(`picomatch remains vulnerable: ${entry.version}`);
+            }
+          }
+          NODE
+
+      - name: Commit source-only hardening
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src test package.json package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'security: enforce network opt-out and update toolchain'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:security/public-ready
