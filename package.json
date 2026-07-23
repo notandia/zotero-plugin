@@ -2,9 +2,9 @@
   "name": "mdpi-filter-zotero",
   "type": "module",
   "version": "0.1.2",
-  "description": "Identify MDPI publications and precisely highlight verified citations in Zotero.",
+  "description": "Notandia for Zotero: open-source publisher context and explainable scholarly-literature signals.",
   "config": {
-    "addonName": "MDPI Filter",
+    "addonName": "Notandia",
     "addonID": "mdpi-filter@mdpi-filter.github.io",
     "addonRef": "mdpifilter",
     "addonInstance": "MDPIFilter",
@@ -12,13 +12,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mdpi-filter/mdpi-filter-zotero.git"
+    "url": "git+https://github.com/notandia/zotero-plugin.git"
   },
-  "author": "MDPI Filter contributors",
+  "author": "Notandia contributors",
   "bugs": {
-    "url": "https://github.com/mdpi-filter/mdpi-filter-zotero/issues"
+    "url": "https://github.com/notandia/zotero-plugin/issues"
   },
-  "homepage": "https://github.com/mdpi-filter/mdpi-filter-zotero#readme",
+  "homepage": "https://github.com/notandia/zotero-plugin#readme",
   "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=22.8.0"
