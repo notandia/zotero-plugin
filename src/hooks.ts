@@ -128,14 +128,14 @@ function registerMenus(win: _ZoteroTypes.MainWindow): void {
   ztoolkit.Menu.register("menuTools", {
     tag: "menuitem",
     id: `${addon.data.config.addonRef}-scan-library`,
-    label: "MDPI Filter: Scan Current Library",
+    label: "Notandia: Scan Current Library",
     commandListener: () => void scanCurrentLibrary(win),
   });
 
   ztoolkit.Menu.register("item", {
     tag: "menuitem",
     id: `${addon.data.config.addonRef}-scan-selected`,
-    label: "MDPI Filter: Check Selected Items",
+    label: "Notandia: Check Selected Items",
     commandListener: () => void scanSelectedItems(win),
   });
 }

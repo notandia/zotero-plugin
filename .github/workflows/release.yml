@@ -46,7 +46,7 @@ jobs:
 
           SOURCE_XPI="$(find .scaffold/build -type f -name '*.xpi' -print -quit)"
           test -n "$SOURCE_XPI"
-          ASSET="mdpi-filter-zotero-${TAG}.xpi"
+          ASSET="notandia-zotero-${TAG}.xpi"
           cp "$SOURCE_XPI" "$ASSET"
           unzip -tq "$ASSET"
           HASH="$(sha256sum "$ASSET" | cut -d' ' -f1)"
@@ -57,8 +57,9 @@ jobs:
           import sys
 
           version, tag, asset, digest = sys.argv[1:]
+          # Released compatibility identity. Do not change during the public rebrand.
           addon_id = "mdpi-filter@mdpi-filter.github.io"
-          base = "https://github.com/mdpi-filter/mdpi-filter-zotero/releases/download"
+          base = "https://github.com/notandia/zotero-plugin/releases/download"
           update = {
               "addons": {
                   addon_id: {
@@ -110,5 +111,5 @@ jobs:
             update.json \
             --verify-tag \
             --target "$GITHUB_SHA" \
-            --title "MDPI Filter for Zotero $TAG" \
+            --title "Notandia for Zotero $TAG" \
             --generate-notes
