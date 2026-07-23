@@ -1,11 +1,13 @@
-# MDPI Filter for Zotero
+# Notandia for Zotero
 
 [![Zotero 7–9](https://img.shields.io/badge/Zotero-7%20to%209-CC2936?logo=zotero&logoColor=white)](https://www.zotero.org/)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
-MDPI Filter identifies MDPI publications in Zotero libraries and detects verified MDPI references while you read PDFs or saved HTML articles.
+**Notandia**, previously distributed as MDPI Filter, identifies MDPI publications in Zotero libraries and detects verified MDPI references while you read PDFs or saved HTML articles.
 
-The plugin adapts the portable logic from [MDPI Filter for Chrome](https://github.com/mdpi-filter/mdpi-filter-chrome). For PubMed Central papers, it also uses the article's structured JATS XML so references remain detectable when Zotero's extracted PDF bibliography omits DOI and PubMed links.
+The plugin adapts portable detection logic from the canonical [Notandia browser extension](https://github.com/notandia/browser-extension). For PubMed Central papers, it also uses the article's structured JATS XML so references remain detectable when Zotero's extracted PDF bibliography omits DOI and PubMed links.
+
+> **Independent project:** Notandia is not affiliated with, authorized by, or endorsed by MDPI AG, Zotero, NCBI, Europe PMC, or any publisher or data provider.
 
 ## Features
 
@@ -15,9 +17,9 @@ The plugin adapts the portable logic from [MDPI Filter for Chrome](https://githu
   - publisher metadata
   - structured Zotero journal fields
   - PMID and PMCID metadata resolved through the NCBI ID Converter
-- Adds and maintains the tag `mdpi-filter:MDPI`.
+- Adds and maintains the compatibility tag `mdpi-filter:MDPI`.
 - Adds a sortable **MDPI** item-table column.
-- Adds library and selected-item scan commands.
+- Adds library and selected-item scan commands under the Notandia name.
 - Adds an **MDPI References** section in Zotero's reader.
 - For PMC papers, retrieves public full-text JATS XML from Europe PMC and identifies MDPI references from exact DOI, domain, PMID, or PMCID evidence.
 - Normalizes structured reference labels such as `124.` to the exact citation number `124`.
@@ -54,7 +56,7 @@ If the panel reports that no indexed text is available, return to the library, r
 
 Choose:
 
-**Tools → MDPI Filter: Scan Current Library**
+**Tools → Notandia: Scan Current Library**
 
 Then use Zotero's tag selector to select `mdpi-filter:MDPI`.
 
@@ -62,11 +64,26 @@ Then use Zotero's tag selector to select `mdpi-filter:MDPI`.
 
 Select one or more items, right-click, and choose:
 
-**MDPI Filter: Check Selected Items**
+**Notandia: Check Selected Items**
 
 ### Show the MDPI column
 
 Right-click the item-table header and enable **MDPI**.
+
+## Released identity and compatibility
+
+Notandia is an in-place rebrand of a released Zotero add-on. To preserve upgrades, preferences, tags, and existing library state, these technical identifiers remain unchanged:
+
+```text
+Add-on ID: mdpi-filter@mdpi-filter.github.io
+Runtime reference: mdpifilter
+Global instance: MDPIFilter
+Preference prefix: extensions.zotero.mdpifilter
+Library tag: mdpi-filter:MDPI
+Build package name: mdpi-filter-zotero
+```
+
+They are compatibility identifiers, not the current public product name. They must not be renamed without a tested migration and an update-path analysis.
 
 ## Precision policy
 
@@ -94,7 +111,7 @@ The preference is checked before identifier resolution, before structured PMC re
 
 ## Tests and supply-chain controls
 
-CI uses read-only repository permissions, pinned GitHub Action revisions, Node.js 24, deterministic `npm ci` installs, dependency auditing, TypeScript validation, XPI ZIP-integrity checks, and Zotero runtime tests. The downloaded Zotero 9.0.6 test runtime is verified against a pinned SHA-256 checksum.
+CI uses read-only repository permissions, pinned GitHub Action revisions, Node.js 24, deterministic `npm ci` installs, dependency auditing, TypeScript validation, XPI ZIP-integrity checks, and Zotero runtime tests. The downloaded Zotero test runtime is verified against a pinned SHA-256 checksum.
 
 Runtime tests cover:
 
