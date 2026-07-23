@@ -57,8 +57,7 @@ jobs:
           import sys
 
           version, tag, asset, digest = sys.argv[1:]
-          # Released compatibility identity. Do not change during the public rebrand.
-          addon_id = "mdpi-filter@mdpi-filter.github.io"
+          addon_id = "zotero-plugin@notandia.github.io"
           base = "https://github.com/notandia/zotero-plugin/releases/download"
           update = {
               "addons": {

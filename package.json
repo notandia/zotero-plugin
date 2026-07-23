@@ -5,7 +5,7 @@
   "description": "Notandia for Zotero: open-source publisher context and explainable scholarly-literature signals.",
   "config": {
     "addonName": "Notandia",
-    "addonID": "mdpi-filter@mdpi-filter.github.io",
+    "addonID": "zotero-plugin@notandia.github.io",
     "addonRef": "mdpifilter",
     "addonInstance": "MDPIFilter",
     "prefsPrefix": "extensions.zotero.mdpifilter"
