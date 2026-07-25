@@ -1,0 +1,70 @@
+name: Capture dependency audit summary
+
+on:
+  push:
+    branches:
+      - brand/apply-notandia-icons
+    paths:
+      - .github/workflows/audit-diagnostic.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: brand/apply-notandia-icons
+          persist-credentials: true
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Create sanitized audit summary
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > /tmp/audit.json
+          status=$?
+          set -e
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/audit.json', 'utf8'));
+          const out = {
+            metadata: data.metadata?.vulnerabilities || {},
+            vulnerabilities: Object.fromEntries(Object.entries(data.vulnerabilities || {}).map(([name, value]) => [name, {
+              severity: value.severity,
+              isDirect: value.isDirect,
+              via: (value.via || []).map(item => typeof item === 'string' ? item : {
+                source: item.source,
+                name: item.name,
+                dependency: item.dependency,
+                title: item.title,
+                severity: item.severity,
+                range: item.range,
+                url: item.url
+              }),
+              effects: value.effects,
+              range: value.range,
+              nodes: value.nodes,
+              fixAvailable: value.fixAvailable
+            }]))
+          };
+          fs.writeFileSync('audit-summary.json', JSON.stringify(out, null, 2) + '\n');
+          NODE
+          echo "npm_audit_status=$status" >> "$GITHUB_ENV"
+      - name: Commit audit summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add audit-summary.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "ci: record dependency audit summary"
+          git push origin HEAD:brand/apply-notandia-icons
