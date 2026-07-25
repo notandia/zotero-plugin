@@ -1,0 +1,42 @@
+name: Update ESLint security patch dependencies
+
+on:
+  push:
+    branches:
+      - brand/apply-notandia-icons
+    paths:
+      - .github/workflows/update-eslint-security.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: brand/apply-notandia-icons
+          persist-credentials: true
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Update patched ESLint 9 dependencies
+        run: npm install --save-dev --save-exact eslint@9.39.4 @eslint/js@9.39.4
+      - name: Verify audit and checks
+        run: |
+          npm audit --audit-level=high
+          npm run lint:check
+          npm run build
+      - name: Commit dependency update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add package.json package-lock.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "security: update ESLint dependencies for brace-expansion advisory"
+          git push origin HEAD:brand/apply-notandia-icons
