@@ -1,0 +1,52 @@
+name: Apply Notandia Zotero icons
+
+on:
+  push:
+    branches:
+      - brand/apply-notandia-icons
+    paths:
+      - .github/workflows/apply-notandia-icons.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: brand/apply-notandia-icons
+          persist-credentials: true
+
+      - name: Download approved pinned assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/notandia/browser-extension/d41dc02d733734c0b9bfea401d7b4856feaf7c5b/icons"
+          mkdir -p addon/content/icons
+          curl --fail --location --silent --show-error "$base/icon-48.png" -o addon/content/icons/favicon@0.5x.png
+          curl --fail --location --silent --show-error "$base/icon-96.png" -o addon/content/icons/favicon.png
+          python3 - <<'PY'
+          from pathlib import Path
+          for path, size in [(Path('addon/content/icons/favicon@0.5x.png'), 48), (Path('addon/content/icons/favicon.png'), 96)]:
+              data = path.read_bytes()
+              assert data[:8] == b'\x89PNG\r\n\x1a\n'
+              assert int.from_bytes(data[16:20], 'big') == size
+              assert int.from_bytes(data[20:24], 'big') == size
+          PY
+
+      - name: Commit icon assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add addon/content/icons/favicon@0.5x.png addon/content/icons/favicon.png
+          if git diff --cached --quiet; then
+            echo "Zotero icons are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "brand: apply Notandia icons to the Zotero package"
+          git push origin HEAD:brand/apply-notandia-icons
