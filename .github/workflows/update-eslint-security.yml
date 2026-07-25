@@ -24,8 +24,8 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - name: Update patched ESLint 9 dependencies
-        run: npm install --save-dev --save-exact eslint@9.39.4 @eslint/js@9.39.4
+      - name: Update patched lint dependency tree
+        run: npm install --save-dev --save-exact eslint@9.39.4 @eslint/js@9.39.4 typescript-eslint@8.65.0
       - name: Verify audit and checks
         run: |
           npm audit --audit-level=high
@@ -38,5 +38,5 @@ jobs:
           git add package.json package-lock.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "security: update ESLint dependencies for brace-expansion advisory"
+          git commit -m "security: update lint dependencies for brace-expansion advisory"
           git push origin HEAD:brand/apply-notandia-icons
