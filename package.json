@@ -36,18 +36,17 @@
     "zotero-plugin-toolkit": "5.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.1",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.15.30",
-    "eslint": "^9.28.0",
+    "eslint": "^10.7.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.34.0",
+    "typescript-eslint": "^8.65.0",
     "zotero-plugin-scaffold": "^0.8.7",
     "zotero-types": "^4.0.3"
   },
   "overrides": {
-    "adm-zip": "0.6.0",
-    "brace-expansion@5.0.7": "5.0.8"
+    "adm-zip": "0.6.0"
   },
   "prettier": {
     "printWidth": 80,
