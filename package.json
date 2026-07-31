@@ -40,7 +40,7 @@
     "@types/node": "^22.15.30",
     "eslint": "^10.7.0",
     "prettier": "^3.5.3",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.65.0",
     "zotero-plugin-scaffold": "^0.8.7",
     "zotero-types": "^4.0.3"
