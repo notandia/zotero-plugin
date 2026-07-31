@@ -1,7 +1,7 @@
 {
   "name": "mdpi-filter-zotero",
   "type": "module",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Notandia for Zotero: open-source publisher context and explainable scholarly-literature signals.",
   "config": {
     "addonName": "Notandia",
