@@ -3,7 +3,7 @@
 [![Zotero 7–9](https://img.shields.io/badge/Zotero-7%20to%209-CC2936?logo=zotero&logoColor=white)](https://www.zotero.org/)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
-**Notandia**, previously distributed as MDPI Filter, identifies MDPI publications in Zotero libraries and detects verified MDPI references while you read PDFs or saved HTML articles.
+**Notandia** identifies MDPI publications in Zotero libraries and detects verified MDPI references while you read PDFs or saved HTML articles.
 
 The plugin adapts portable detection logic from the canonical [Notandia browser extension](https://github.com/notandia/browser-extension). For PubMed Central papers, it also uses the article's structured JATS XML so references remain detectable when Zotero's extracted PDF bibliography omits DOI and PubMed links.
 
@@ -11,30 +11,33 @@ The plugin adapts portable detection logic from the canonical [Notandia browser 
 
 ## Features
 
-- Detects MDPI library items from:
-  - DOI prefix `10.3390/`
-  - genuine `mdpi.com` and `mdpi.org` hosts
-  - publisher metadata
-  - structured Zotero journal fields
-  - PMID and PMCID metadata resolved through the NCBI ID Converter
+- Detects MDPI library items from DOI prefix `10.3390/`, genuine MDPI hosts, publisher metadata, structured Zotero fields, and optional PMID/PMCID resolution.
 - Adds and maintains the compatibility tag `mdpi-filter:MDPI`.
 - Adds a sortable **MDPI** item-table column.
 - Adds library and selected-item scan commands under the Notandia name.
 - Adds an **MDPI References** section in Zotero's reader.
-- For PMC papers, retrieves public full-text JATS XML from Europe PMC and identifies MDPI references from exact DOI, domain, PMID, or PMCID evidence.
+- For PMC papers, retrieves public JATS XML from Europe PMC and identifies MDPI references from exact DOI, domain, PMID, or PMCID evidence.
 - Normalizes structured reference labels such as `124.` to the exact citation number `124`.
 - Creates red Zotero highlights only when a verified structured reference can be mapped to an exact PDF citation marker.
 - In grouped citations such as `[123, 124]`, highlights only the verified number `124`.
 - Deliberately skips ambiguous bare numbers when their position cannot be proven safely.
 - Never classifies a reader reference merely because a journal name, title, or capitalization resembles an MDPI publication.
 
-## Installation
+## Installation and updates
 
 1. Open the repository's **Releases** page.
-2. Download the latest `.xpi`.
+2. Download the latest `notandia-zotero-….xpi` file.
 3. In Zotero, open **Tools → Plugins**.
 4. Use the gear menu and choose **Install Plugin From File…**
 5. Select the `.xpi` and restart Zotero if requested.
+
+Version `0.2.0` starts the public Notandia add-on identity:
+
+```text
+zotero-plugin@notandia.github.io
+```
+
+An older local installation using `mdpi-filter@mdpi-filter.github.io` is a different add-on identity and must be removed or replaced manually once. After Notandia `0.2.0` is installed, Zotero can obtain subsequent releases automatically through the update URL embedded in the XPI. You can also use the plugin manager's **Check for Updates** action. Future updates do not require extracting files or repeatedly installing each XPI by hand.
 
 The plugin targets Zotero 7, 8, and 9.
 
@@ -70,12 +73,13 @@ Select one or more items, right-click, and choose:
 
 Right-click the item-table header and enable **MDPI**.
 
-## Released identity and compatibility
+## Identity and compatibility
 
-Notandia is an in-place rebrand of a released Zotero add-on. To preserve upgrades, preferences, tags, and existing library state, these technical identifiers remain unchanged:
+Notandia `0.2.0` uses add-on ID `zotero-plugin@notandia.github.io`. The historical MDPI Filter release was effectively private and is not used as the active update identity.
+
+These internal identifiers remain temporarily so preferences, tags, and runtime behavior can be migrated deliberately rather than cosmetically renamed:
 
 ```text
-Add-on ID: mdpi-filter@mdpi-filter.github.io
 Runtime reference: mdpifilter
 Global instance: MDPIFilter
 Preference prefix: extensions.zotero.mdpifilter
@@ -83,7 +87,7 @@ Library tag: mdpi-filter:MDPI
 Build package name: mdpi-filter-zotero
 ```
 
-They are compatibility identifiers, not the current public product name. They must not be renamed without a tested migration and an update-path analysis.
+See [Identity status during the Notandia rebrand](docs/IDENTITY_COMPATIBILITY.md).
 
 ## Precision policy
 
@@ -111,20 +115,7 @@ The preference is checked before identifier resolution, before structured PMC re
 
 ## Tests and supply-chain controls
 
-CI uses read-only repository permissions, pinned GitHub Action revisions, Node.js 24, deterministic `npm ci` installs, dependency auditing, TypeScript validation, XPI ZIP-integrity checks, and Zotero runtime tests. The downloaded Zotero test runtime is verified against a pinned SHA-256 checksum.
-
-Runtime tests cover:
-
-- startup and menus
-- item detection and spoofed-domain rejection
-- bibliography-only local scanning
-- exact JATS parsing without journal-title inference
-- punctuation-normalized labels such as `124.`
-- complete network opt-out with zero HTTP requests
-- live ID Converter resolution
-- live `PMC5469049` recognition of reference 124 as `10.3390/nu4091171`
-- grouped-citation geometry and unrelated-number rejection
-- tag synchronization, notifier behavior, and library scanning
+CI uses read-only repository permissions, pinned GitHub Action revisions, Node.js 24, deterministic `npm ci` installs, dependency auditing, TypeScript validation, XPI ZIP-integrity checks, CodeQL, and Zotero runtime tests. The downloaded Zotero test runtime is verified against a pinned SHA-256 checksum.
 
 Versioned release tags create non-overwriting XPI assets, SHA-256 checksum files, a Zotero update manifest containing the XPI hash, and a GitHub artifact provenance attestation.
 
