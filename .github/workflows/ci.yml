@@ -22,52 +22,6 @@ env:
   NODE_VERSION: "24"
 
 jobs:
-  lockfile-refresh:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/security/brace-expansion-5.0.8'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout security branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: security/brace-expansion-5.0.8
-          persist-credentials: false
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - name: Regenerate and verify dependency lockfile
-        run: |
-          npm install --package-lock-only --ignore-scripts
-          npm audit --audit-level=high
-          node - <<'NODE'
-          const lock = require('./package-lock.json');
-          const entries = Object.entries(lock.packages || {}).filter(([path]) => path.endsWith('/brace-expansion') || path === 'node_modules/brace-expansion');
-          if (!entries.length) throw new Error('brace-expansion entry is missing');
-          for (const [path, entry] of entries) {
-            if (entry?.version !== '5.0.9') throw new Error(`${path} resolved to ${entry?.version}`);
-          }
-          NODE
-      - name: Commit only package-lock.json
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add package-lock.json
-          if git diff --cached --quiet; then
-            echo "Lockfile already current"
-            exit 0
-          fi
-          test "$(git diff --cached --name-only)" = "package-lock.json"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "security: refresh audited dependency lockfile"
-          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
-          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" push origin HEAD:security/brace-expansion-5.0.8
-
   lint:
     runs-on: ubuntu-latest
     steps:
