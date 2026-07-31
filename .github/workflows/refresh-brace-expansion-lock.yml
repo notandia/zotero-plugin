@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   refresh-lock:
+    # One-shot, branch-scoped generator. This workflow is removed before merge.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout security branch
