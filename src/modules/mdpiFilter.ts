@@ -205,7 +205,7 @@ export function ncbiLookupEnabled(): boolean {
       Zotero.Prefs.get(`${config.prefsPrefix}.ncbiApiEnabled`, true) !== false
     );
   } catch (_error) {
-    return true;
+    return false;
   }
 }
 
@@ -213,6 +213,10 @@ async function fetchNCBIBatch(
   ids: string[],
   idType: NCBIIdType,
 ): Promise<any[] | undefined> {
+  if (!ncbiLookupEnabled()) {
+    return undefined;
+  }
+
   const url = new URL(NCBI_ID_CONVERTER);
   url.searchParams.set("ids", ids.join(","));
   url.searchParams.set("idtype", idType);
@@ -250,8 +254,11 @@ async function resolveNCBIIds(
     ),
   );
   const results = new Map<string, boolean>();
-  const uncached: string[] = [];
+  if (!ncbiLookupEnabled()) {
+    return results;
+  }
 
+  const uncached: string[] = [];
   for (const id of normalizedIds) {
     const cacheKey = `${idType}:${id}`;
     if (ncbiResultCache.has(cacheKey)) {
@@ -259,10 +266,6 @@ async function resolveNCBIIds(
     } else {
       uncached.push(id);
     }
-  }
-
-  if (!ncbiLookupEnabled()) {
-    return results;
   }
 
   for (let offset = 0; offset < uncached.length; offset += NCBI_BATCH_SIZE) {
