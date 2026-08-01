@@ -103,6 +103,43 @@ describe("Notandia work identifier mapper", function () {
     );
   });
 
+  it("requires an explicit type before a bare numeric value becomes a PMID", function () {
+    const ambiguous = api().extractWorkIdentifiers("33408014", {
+      source: "page-text",
+      method: "unstructured-text",
+    });
+    assertArray(
+      ambiguous.identifiers.pmid,
+      [],
+      "bare number was incorrectly inferred as a PMID",
+    );
+    assertEqual(
+      ambiguous.canonicalKey,
+      null,
+      "ambiguous number received a canonical key",
+    );
+
+    const structured = api().extractWorkIdentifiers(
+      { year: 2020, pmid: "33408014" },
+      { source: "structured-metadata" },
+    );
+    assertArray(
+      structured.identifiers.pmid,
+      ["33408014"],
+      "typed PMID metadata was not recognized",
+    );
+    assertArray(
+      structured.identifiers.arxiv,
+      [],
+      "metadata year was incorrectly inferred as arXiv",
+    );
+    assertEqual(
+      structured.canonicalKey,
+      "pmid:33408014",
+      "typed PMID canonical key changed",
+    );
+  });
+
   it("maps NCBI records through the shared identity model", function () {
     const records = [
       {
