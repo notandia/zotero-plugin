@@ -15,9 +15,12 @@ import {
   getItemPMCID,
   highlightMDPICitations,
   parsePMCReferenceXML,
-  registerReferenceReaderSection,
-  unregisterReferenceReaderSection,
 } from "./modules/referenceScanner";
+import {
+  highlightMDPIReferenceSources,
+  registerReaderOverviewSection,
+  unregisterReaderOverviewSection,
+} from "./modules/readerOverview";
 import { createZToolkit } from "./utils/ztoolkit";
 
 function logError(error: unknown): void {
@@ -155,6 +158,7 @@ async function onStartup(): Promise<void> {
     findMDPIReferencesForItem,
     getItemPMCID,
     highlightMDPICitations,
+    highlightMDPIReferenceSources,
     isMDPIItem,
     parsePMCReferenceXML,
     scanLibrary,
@@ -162,7 +166,7 @@ async function onStartup(): Promise<void> {
   };
 
   registerMDPINotifier();
-  registerReferenceReaderSection();
+  registerReaderOverviewSection();
 
   try {
     await registerMDPIColumn();
@@ -188,7 +192,7 @@ async function onMainWindowUnload(_win: Window): Promise<void> {
 
 function onShutdown(): void {
   unregisterMDPINotifier();
-  unregisterReferenceReaderSection();
+  unregisterReaderOverviewSection();
   ztoolkit.unregisterAll();
   addon.data.initialized = false;
   addon.data.alive = false;

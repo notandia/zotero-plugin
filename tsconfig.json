@@ -6,6 +6,7 @@
     "src/hooks.ts",
     "src/modules/mdpiFilter.ts",
     "src/modules/referenceScanner.ts",
+    "src/modules/readerOverview.ts",
     "src/utils/ztoolkit.ts",
     "typings"
   ],

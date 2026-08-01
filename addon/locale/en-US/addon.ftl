@@ -11,3 +11,5 @@ tabpanel-lib-tab-label = Lib Tab
 tabpanel-reader-tab-label = Reader Tab
 mdpifilter-reader-references-header = MDPI References
 mdpifilter-reader-references-sidenav = MDPI References
+mdpifilter-reader-overview-header = Notandia Overview
+mdpifilter-reader-overview-sidenav = Notandia Overview
