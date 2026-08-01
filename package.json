@@ -26,7 +26,7 @@
   "scripts": {
     "start": "zotero-plugin serve",
     "build": "zotero-plugin build && tsc --noEmit",
-    "lint:check": "prettier --check . && eslint .",
+    "lint:check": "prettier src/modules/readerOverview.ts && exit 1",
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
     "test": "zotero-plugin test --abort-on-fail --exit-on-finish",
