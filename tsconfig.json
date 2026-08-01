@@ -7,6 +7,7 @@
     "src/modules/mdpiFilter.ts",
     "src/modules/referenceScanner.ts",
     "src/modules/readerOverview.ts",
+    "src/modules/workIdentifiers.ts",
     "src/utils/ztoolkit.ts",
     "typings"
   ],
