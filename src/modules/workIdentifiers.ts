@@ -40,6 +40,10 @@ const PMCID_EXACT = /^PMC\d{1,12}$/i;
 const ARXIV_NEW = /^(\d{4}\.\d{4,5})(?:v(\d+))?$/i;
 const ARXIV_OLD = /^([a-z][a-z0-9.-]+\/\d{7})(?:v(\d+))?$/i;
 
+function isIdentifierType(value: string): value is WorkIdentifierType {
+  return IDENTIFIER_TYPES.includes(value as WorkIdentifierType);
+}
+
 function safeDecode(value: unknown): string {
   const text = String(value ?? "").trim();
   try {
@@ -209,6 +213,7 @@ function addIdentifier(
   value: unknown,
   options: IdentifierExtractionOptions,
 ): boolean {
+  if (value === undefined || value === null || value === "") return false;
   const normalizers: Record<
     WorkIdentifierType,
     (candidate: unknown) => string | undefined
@@ -295,17 +300,9 @@ function extractOne(
     ...options,
     method: options.method || "doi-value",
   });
-  addIdentifier(identity, "pmid", text, {
-    ...options,
-    method: options.method || "pmid-value",
-  });
   addIdentifier(identity, "pmcid", text, {
     ...options,
     method: options.method || "pmcid-value",
-  });
-  addIdentifier(identity, "arxiv", text, {
-    ...options,
-    method: options.method || "arxiv-value",
   });
 
   for (const found of text.matchAll(DOI_SEARCH)) {
@@ -336,14 +333,43 @@ function extractOne(
   }
 }
 
-function flattenValues(values: unknown): unknown[] {
-  if (values == null) return [];
-  if (Array.isArray(values)) return values.flatMap(flattenValues);
-  if (values instanceof Set) return Array.from(values).flatMap(flattenValues);
-  if (typeof values === "object") {
-    return Object.values(values as Record<string, unknown>).flatMap(flattenValues);
+function extractValues(
+  values: unknown,
+  identity: WorkIdentity,
+  options: IdentifierExtractionOptions,
+): void {
+  if (values === undefined || values === null) return;
+  if (Array.isArray(values)) {
+    for (const value of values) extractValues(value, identity, options);
+    return;
   }
-  return [values];
+  if (values instanceof Set) {
+    for (const value of values) extractValues(value, identity, options);
+    return;
+  }
+  if (typeof values === "object") {
+    for (const [rawKey, value] of Object.entries(
+      values as Record<string, unknown>,
+    )) {
+      const key = rawKey.toLowerCase();
+      if (isIdentifierType(key)) {
+        const candidates =
+          Array.isArray(value) || value instanceof Set
+            ? Array.from(value)
+            : [value];
+        for (const candidate of candidates) {
+          addIdentifier(identity, key, candidate, {
+            ...options,
+            method: options.method || `structured-${key}`,
+          });
+        }
+      } else {
+        extractValues(value, identity, options);
+      }
+    }
+    return;
+  }
+  extractOne(values, identity, options);
 }
 
 export function extractWorkIdentifiers(
@@ -351,9 +377,7 @@ export function extractWorkIdentifiers(
   options: IdentifierExtractionOptions = {},
 ): WorkIdentity {
   const identity = emptyIdentity();
-  for (const value of flattenValues(values)) {
-    extractOne(value, identity, options);
-  }
+  extractValues(values, identity, options);
   return finalize(identity);
 }
 
