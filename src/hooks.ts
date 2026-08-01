@@ -21,6 +21,19 @@ import {
   registerReaderOverviewSection,
   unregisterReaderOverviewSection,
 } from "./modules/readerOverview";
+import {
+  canonicalWorkKey,
+  extractWorkIdentifiers,
+  identitiesFromNCBIRecords,
+  mergeWorkIdentities,
+  normalizeArxiv,
+  normalizeDOI,
+  normalizePMCID,
+  normalizePMID,
+  parseArxiv,
+  resolutionMapsFromNCBI,
+  resolvedDOI,
+} from "./modules/workIdentifiers";
 import { createZToolkit } from "./utils/ztoolkit";
 
 function logError(error: unknown): void {
@@ -163,6 +176,17 @@ async function onStartup(): Promise<void> {
     parsePMCReferenceXML,
     scanLibrary,
     syncItems,
+    canonicalWorkKey,
+    extractWorkIdentifiers,
+    identitiesFromNCBIRecords,
+    mergeWorkIdentities,
+    normalizeArxiv,
+    normalizeDOI,
+    normalizePMCID,
+    normalizePMID,
+    parseArxiv,
+    resolutionMapsFromNCBI,
+    resolvedDOI,
   };
 
   registerMDPINotifier();
