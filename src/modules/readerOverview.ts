@@ -162,7 +162,8 @@ function existingSourceKeys(item: Zotero.Item): Set<string> {
 function sourceQueries(
   match: MDPIReferenceMatch,
 ): Array<{ text: string; entireWord: boolean; kind: string }> {
-  const queries: Array<{ text: string; entireWord: boolean; kind: string }> = [];
+  const queries: Array<{ text: string; entireWord: boolean; kind: string }> =
+    [];
   if (match.doi) {
     const doi = cleanDOI(match.doi);
     if (doi) {
@@ -313,7 +314,8 @@ function appendMetric(
 ): void {
   const document = container.ownerDocument!;
   const card = document.createElement("div");
-  card.style.border = "1px solid color-mix(in srgb, currentColor 18%, transparent)";
+  card.style.border =
+    "1px solid color-mix(in srgb, currentColor 18%, transparent)";
   card.style.borderRadius = "8px";
   card.style.padding = "8px";
   card.style.minWidth = "118px";
@@ -360,7 +362,12 @@ function renderOverview(
   metrics.style.flexWrap = "wrap";
   metrics.style.gap = "6px";
   metrics.style.margin = "8px 0 10px";
-  appendMetric(metrics, "Publisher matches", String(matches.length), "MDPI references");
+  appendMetric(
+    metrics,
+    "Publisher matches",
+    String(matches.length),
+    "MDPI references",
+  );
   appendMetric(
     metrics,
     "In-text citations",
@@ -395,21 +402,31 @@ function renderOverview(
   evidence.style.fontSize = "12px";
   body.appendChild(evidence);
 
-  if (citations.skippedUnsafe || sources.notLocatable || citations.errors || sources.errors) {
+  if (
+    citations.skippedUnsafe ||
+    sources.notLocatable ||
+    citations.errors ||
+    sources.errors
+  ) {
     const limitations = document.createElement("p");
     const parts = [];
     if (citations.skippedUnsafe) {
-      parts.push(`${citations.skippedUnsafe} ambiguous citation marker${
-        citations.skippedUnsafe === 1 ? "" : "s"
-      } skipped`);
+      parts.push(
+        `${citations.skippedUnsafe} ambiguous citation marker${
+          citations.skippedUnsafe === 1 ? "" : "s"
+        } skipped`,
+      );
     }
     if (sources.notLocatable) {
-      parts.push(`${sources.notLocatable} bibliography source${
-        sources.notLocatable === 1 ? "" : "s"
-      } not safely locatable`);
+      parts.push(
+        `${sources.notLocatable} bibliography source${
+          sources.notLocatable === 1 ? "" : "s"
+        } not safely locatable`,
+      );
     }
     const errors = citations.errors + sources.errors;
-    if (errors) parts.push(`${errors} highlighting error${errors === 1 ? "" : "s"}`);
+    if (errors)
+      parts.push(`${errors} highlighting error${errors === 1 ? "" : "s"}`);
     limitations.textContent = parts.join(" · ");
     limitations.style.margin = "8px 0";
     limitations.style.fontSize = "12px";
