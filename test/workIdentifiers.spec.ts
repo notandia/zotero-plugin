@@ -4,9 +4,15 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-function assertEqual(actual: unknown, expected: unknown, message: string): void {
+function assertEqual(
+  actual: unknown,
+  expected: unknown,
+  message: string,
+): void {
   if (actual !== expected) {
-    throw new Error(`${message}: expected ${String(expected)}, got ${String(actual)}`);
+    throw new Error(
+      `${message}: expected ${String(expected)}, got ${String(actual)}`,
+    );
   }
 }
 
@@ -41,9 +47,7 @@ describe("Notandia work identifier mapper", function () {
       "PubMed URL was not normalized",
     );
     assertEqual(
-      api().normalizePMCID(
-        "https://pmc.ncbi.nlm.nih.gov/articles/PMC7779265/",
-      ),
+      api().normalizePMCID("https://pmc.ncbi.nlm.nih.gov/articles/PMC7779265/"),
       "PMC7779265",
       "PMC URL was not normalized",
     );
