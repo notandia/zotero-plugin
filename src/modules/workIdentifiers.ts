@@ -162,14 +162,18 @@ function emptyIdentity(): WorkIdentity {
   };
 }
 
-function evidenceMetadata(options: IdentifierExtractionOptions): Required<
-  IdentifierExtractionOptions
-> {
+function evidenceMetadata(
+  options: IdentifierExtractionOptions,
+): Required<IdentifierExtractionOptions> {
   return {
-    source: String(options.source || "local").trim().slice(0, 80) || "local",
+    source:
+      String(options.source || "local")
+        .trim()
+        .slice(0, 80) || "local",
     method:
-      String(options.method || "exact-value").trim().slice(0, 80) ||
-      "exact-value",
+      String(options.method || "exact-value")
+        .trim()
+        .slice(0, 80) || "exact-value",
     confidence: options.confidence || "exact",
   };
 }
