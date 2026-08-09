@@ -230,8 +230,7 @@ async function resolveNCBI(
       ? String(record.pmcid).toUpperCase()
       : undefined;
     if (recordPMID && result.has(recordPMID)) result.set(recordPMID, isMDPI);
-    if (recordPMCID && result.has(recordPMCID))
-      result.set(recordPMCID, isMDPI);
+    if (recordPMCID && result.has(recordPMCID)) result.set(recordPMCID, isMDPI);
   }
   return result;
 }
