@@ -1,5 +1,9 @@
 import { config } from "../../package.json";
-import { normalizeDOI, normalizePMCID, normalizePMID } from "./workIdentifiers";
+import {
+  normalizeDOI,
+  normalizePMCID,
+  normalizePMID,
+} from "./workIdentifiers";
 
 export type NCBIIdType = "pmid" | "pmcid" | "doi";
 export type NCBIProviderStatus =
@@ -57,7 +61,9 @@ export function ncbiLookupEnabled(): boolean {
 }
 
 function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, Math.max(0, milliseconds)));
+  return new Promise((resolve) =>
+    setTimeout(resolve, Math.max(0, milliseconds)),
+  );
 }
 
 function normalizeIdentifier(
@@ -141,7 +147,10 @@ function sanitizeCandidate(candidate: any): NCBIRecord | undefined {
     ? candidate.versions
         .slice(0, 20)
         .map(sanitizeCandidate)
-        .filter((entry): entry is NCBIRecord => Boolean(entry))
+        .filter(
+          (entry: NCBIRecord | undefined): entry is NCBIRecord =>
+            Boolean(entry),
+        )
     : [];
   if (versions.length) output.versions = versions;
   return Object.keys(output).length ? output : undefined;
@@ -196,7 +205,10 @@ async function performRequest(
       ? data.records
           .slice(0, NCBI_MAX_IDS * 2)
           .map(sanitizeCandidate)
-          .filter((entry): entry is NCBIRecord => Boolean(entry))
+          .filter(
+            (entry: NCBIRecord | undefined): entry is NCBIRecord =>
+              Boolean(entry),
+          )
       : [];
     return { status: "ok", records, retryAfterMs: 0 };
   } catch (error) {
