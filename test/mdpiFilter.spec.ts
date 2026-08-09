@@ -113,23 +113,47 @@ describe("MDPI Filter Zotero runtime", function () {
     assert(isMDPIItem(journalItem), "known MDPI journal was not detected");
 
     const originalRequest = Zotero.HTTP.request;
+    let requestURL = "";
     try {
-      Zotero.HTTP.request = async () => ({
-        response: {
-          records: [
-            {
-              pmid: "99999991",
-              pmcid: "PMC99999991",
-              doi: "10.3390/mock-ncbi-result",
-            },
-          ],
-        },
-      });
+      Zotero.HTTP.request = async (_method: string, url: string) => {
+        requestURL = url;
+        return {
+          status: 200,
+          response: {
+            records: [
+              {
+                pmid: "99999991",
+                pmcid: "PMC99999991",
+                doi: "10.3390/mock-ncbi-result",
+              },
+            ],
+          },
+        };
+      };
       const ncbiItem = new Zotero.Item("journalArticle");
       ncbiItem.setField("extra", "PMID: 99999991");
       assert(
         await detectMDPIItem(ncbiItem),
         "NCBI PMID-to-MDPI resolution failed",
+      );
+      const parsed = new URL(requestURL);
+      assert(
+        parsed.hostname === "pmc.ncbi.nlm.nih.gov" &&
+          parsed.pathname === "/tools/idconv/api/v1/articles/",
+        "current PMC ID Converter endpoint was not used",
+      );
+      assert(
+        parsed.searchParams.get("tool") === "NotandiaZotero",
+        "provider-required tool parameter was not sent",
+      );
+      assert(
+        parsed.searchParams.get("email") ===
+          "mario.marcolongo.dev@gmail.com",
+        "provider-required maintainer email was not sent",
+      );
+      assert(
+        !parsed.searchParams.has("api_key"),
+        "an API key was unexpectedly included",
       );
     } finally {
       Zotero.HTTP.request = originalRequest;
@@ -241,30 +265,96 @@ describe("MDPI Filter Zotero runtime", function () {
     }
   });
 
-  it("resolves a real PMC reference through the current NCBI endpoint", async function () {
-    this.timeout(30000);
-    const matches = await getPlugin().api.findMDPIReferences(
-      "References\n1. Rapid determination study. PMCID: PMC11172733",
-    );
-    assert(
-      matches.some((entry: any) => entry.pmcid === "PMC11172733"),
-      "live PMCID-to-MDPI resolution failed",
-    );
+  it("serializes concurrent PMC ID Converter requests", async function () {
+    this.timeout(10000);
+    const originalRequest = Zotero.HTTP.request;
+    let active = 0;
+    let maxActive = 0;
+    const urls: string[] = [];
+    try {
+      Zotero.HTTP.request = async (_method: string, url: string) => {
+        const parsed = new URL(url);
+        if (parsed.hostname !== "pmc.ncbi.nlm.nih.gov") {
+          throw new Error(`unexpected external request: ${url}`);
+        }
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        urls.push(url);
+        await Zotero.Promise.delay(75);
+        const idType = parsed.searchParams.get("idtype");
+        const ids = String(parsed.searchParams.get("ids") || "")
+          .split(",")
+          .filter(Boolean);
+        const records = ids.map((id) =>
+          idType === "pmcid"
+            ? { pmcid: id, doi: "10.3390/mock-pmcid" }
+            : { pmid: id, doi: "10.3390/mock-pmid" },
+        );
+        active -= 1;
+        return { status: 200, response: { records } };
+      };
+
+      const matches = await getPlugin().api.findMDPIReferences(
+        "References\n1. Example. PMID: 99999992\n2. Example. PMCID: PMC99999992",
+      );
+      assert(matches.length === 2, "mock NCBI matches were not resolved");
+      assert(urls.length === 2, "expected two distinct provider requests");
+      assert(maxActive === 1, "PMC ID Converter requests overlapped");
+      assert(
+        urls.every((url) => {
+          const parsed = new URL(url);
+          return (
+            parsed.searchParams.get("tool") === "NotandiaZotero" &&
+            parsed.searchParams.get("email") ===
+              "mario.marcolongo.dev@gmail.com"
+          );
+        }),
+        "provider identity was not present on every request",
+      );
+    } finally {
+      Zotero.HTTP.request = originalRequest;
+    }
   });
 
-  it("finds reference 124 in the real PMC5469049 JATS document", async function () {
-    this.timeout(60000);
-    const matches =
-      await getPlugin().api.fetchPMCReferenceMatches("PMC5469049");
-    assert(matches, "PMC EFetch returned no structured references");
-    const reference = matches.find(
-      (entry: any) =>
-        entry.referenceLabel === "124" && entry.doi === "10.3390/nu4091171",
-    );
-    assert(
-      reference,
-      "structured PMC reference 124 was not recognized as MDPI",
-    );
+  it("fetches structured PMC XML through a deterministic Europe PMC fixture", async function () {
+    const originalRequest = Zotero.HTTP.request;
+    try {
+      Zotero.HTTP.request = async (_method: string, url: string) => {
+        const parsed = new URL(url);
+        assert(
+          parsed.hostname === "www.ebi.ac.uk",
+          "structured reference fetch used an unexpected host",
+        );
+        return {
+          status: 200,
+          responseText: `<?xml version="1.0"?>
+            <article>
+              <back>
+                <ref-list>
+                  <ref id="R124">
+                    <label>124</label>
+                    <element-citation>
+                      <article-title>Effects of glycerol and creatine hyperhydration</article-title>
+                      <source>Nutrients</source>
+                      <pub-id pub-id-type="doi">10.3390/nu4091171</pub-id>
+                    </element-citation>
+                  </ref>
+                </ref-list>
+              </back>
+            </article>`,
+        };
+      };
+      const matches =
+        await getPlugin().api.fetchPMCReferenceMatches("PMC99999993");
+      assert(matches, "fixture returned no structured references");
+      const reference = matches.find(
+        (entry: any) =>
+          entry.referenceLabel === "124" && entry.doi === "10.3390/nu4091171",
+      );
+      assert(reference, "structured fixture reference 124 was not recognized");
+    } finally {
+      Zotero.HTTP.request = originalRequest;
+    }
   });
 
   it("highlights only geometrically verified citation markers", async function () {
