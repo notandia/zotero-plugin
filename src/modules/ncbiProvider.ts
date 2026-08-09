@@ -1,18 +1,9 @@
 import { config } from "../../package.json";
-import {
-  normalizeDOI,
-  normalizePMCID,
-  normalizePMID,
-} from "./workIdentifiers";
+import { normalizeDOI, normalizePMCID, normalizePMID } from "./workIdentifiers";
 
 export type NCBIIdType = "pmid" | "pmcid" | "doi";
 export type NCBIProviderStatus =
-  | "ok"
-  | "disabled"
-  | "invalid"
-  | "blocked"
-  | "throttled"
-  | "unavailable";
+  "ok" | "disabled" | "invalid" | "blocked" | "throttled" | "unavailable";
 
 export type NCBIRecord = {
   pmid?: string;
@@ -147,9 +138,8 @@ function sanitizeCandidate(candidate: any): NCBIRecord | undefined {
     ? candidate.versions
         .slice(0, 20)
         .map(sanitizeCandidate)
-        .filter(
-          (entry: NCBIRecord | undefined): entry is NCBIRecord =>
-            Boolean(entry),
+        .filter((entry: NCBIRecord | undefined): entry is NCBIRecord =>
+          Boolean(entry),
         )
     : [];
   if (versions.length) output.versions = versions;
@@ -205,9 +195,8 @@ async function performRequest(
       ? data.records
           .slice(0, NCBI_MAX_IDS * 2)
           .map(sanitizeCandidate)
-          .filter(
-            (entry: NCBIRecord | undefined): entry is NCBIRecord =>
-              Boolean(entry),
+          .filter((entry: NCBIRecord | undefined): entry is NCBIRecord =>
+            Boolean(entry),
           )
       : [];
     return { status: "ok", records, retryAfterMs: 0 };
