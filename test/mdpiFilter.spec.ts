@@ -147,8 +147,7 @@ describe("MDPI Filter Zotero runtime", function () {
         "provider-required tool parameter was not sent",
       );
       assert(
-        parsed.searchParams.get("email") ===
-          "mario.marcolongo.dev@gmail.com",
+        parsed.searchParams.get("email") === "mario.marcolongo.dev@gmail.com",
         "provider-required maintainer email was not sent",
       );
       assert(
