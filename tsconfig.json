@@ -5,6 +5,7 @@
     "src/addon.ts",
     "src/hooks.ts",
     "src/modules/mdpiFilter.ts",
+    "src/modules/ncbiProvider.ts",
     "src/modules/referenceScanner.ts",
     "src/modules/readerOverview.ts",
     "src/modules/workIdentifiers.ts",

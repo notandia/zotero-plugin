@@ -1,10 +1,8 @@
 import { config } from "../../package.json";
-import { ncbiLookupEnabled } from "./mdpiFilter";
+import { fetchNCBIRecords, ncbiLookupEnabled } from "./ncbiProvider";
 
 const MDPI_DOI_PREFIX = "10.3390/";
 const MDPI_DOMAINS = ["mdpi.com", "mdpi.org"];
-const NCBI_ID_CONVERTER =
-  "https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/";
 const NCBI_TIMEOUT_MS = 30000;
 const CONTEXT_RADIUS = 260;
 const READER_PANE_ID = `${config.addonRef}-reader-references`;
@@ -221,38 +219,18 @@ async function resolveNCBI(
   const result = new Map(normalized.map((id) => [id, false]));
   if (!normalized.length || !ncbiLookupEnabled()) return result;
 
-  const url = new URL(NCBI_ID_CONVERTER);
-  url.searchParams.set("ids", normalized.join(","));
-  url.searchParams.set("idtype", idType);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("versions", "no");
-  url.searchParams.set("tool", "MDPIFilterZotero");
+  const provider = await fetchNCBIRecords(normalized, idType);
+  if (provider.status !== "ok") return result;
 
-  try {
-    const response = await (Zotero.HTTP as any).request("GET", url.toString(), {
-      anon: true,
-      errorDelayMax: 0,
-      responseType: "json",
-      successCodes: [200],
-      timeout: NCBI_TIMEOUT_MS,
-    });
-    const data =
-      response.response ||
-      (response.responseText ? JSON.parse(response.responseText) : undefined);
-    const records = Array.isArray(data?.records) ? data.records : [];
-    for (const record of records) {
-      const doi = String(record?.doi || "").toLowerCase();
-      const isMDPI = doi.startsWith(MDPI_DOI_PREFIX);
-      const recordPMID = record?.pmid ? String(record.pmid) : undefined;
-      const recordPMCID = record?.pmcid
-        ? String(record.pmcid).toUpperCase()
-        : undefined;
-      if (recordPMID && result.has(recordPMID)) result.set(recordPMID, isMDPI);
-      if (recordPMCID && result.has(recordPMCID))
-        result.set(recordPMCID, isMDPI);
-    }
-  } catch (error) {
-    Zotero.logError(error instanceof Error ? error : new Error(String(error)));
+  for (const record of provider.records) {
+    const doi = String(record?.doi || "").toLowerCase();
+    const isMDPI = doi.startsWith(MDPI_DOI_PREFIX);
+    const recordPMID = record?.pmid ? String(record.pmid) : undefined;
+    const recordPMCID = record?.pmcid
+      ? String(record.pmcid).toUpperCase()
+      : undefined;
+    if (recordPMID && result.has(recordPMID)) result.set(recordPMID, isMDPI);
+    if (recordPMCID && result.has(recordPMCID)) result.set(recordPMCID, isMDPI);
   }
   return result;
 }

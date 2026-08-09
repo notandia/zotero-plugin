@@ -1,13 +1,19 @@
 import { config } from "../../package.json";
+import {
+  fetchNCBIRecords,
+  ncbiLookupEnabled,
+  NCBI_MAX_IDS,
+} from "./ncbiProvider";
+import { normalizePMCID, normalizePMID } from "./workIdentifiers";
+
+export { ncbiLookupEnabled } from "./ncbiProvider";
 
 export const FILTER_TAG = "mdpi-filter:MDPI";
 export const COLUMN_DATA_KEY = "mdpiFilterStatus";
 
 const MDPI_DOI_PREFIX = "10.3390/";
 const MDPI_DOMAINS = ["mdpi.com", "mdpi.org"];
-const NCBI_ID_CONVERTER = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/";
-const NCBI_BATCH_SIZE = 200;
-const NCBI_TIMEOUT_MS = 15000;
+const NCBI_BATCH_SIZE = NCBI_MAX_IDS;
 const STRONG_MDPI_JOURNALS = [
   "Int J Mol Sci",
   "IJMS",
@@ -166,11 +172,7 @@ function extractItemIdentifiers(item: Zotero.Item): ItemIdentifiers {
 }
 
 function normalizeNCBIId(id: string, idType: NCBIIdType): string | undefined {
-  const value = id.trim();
-  if (idType === "pmid") {
-    return /^\d{1,20}$/.test(value) ? value : undefined;
-  }
-  return /^PMC\d{1,20}$/i.test(value) ? value.toUpperCase() : undefined;
+  return idType === "pmid" ? normalizePMID(id) : normalizePMCID(id);
 }
 
 function recordIdentifiers(record: any): Set<string> {
@@ -180,12 +182,10 @@ function recordIdentifiers(record: any): Set<string> {
     if (!candidate || typeof candidate !== "object") {
       continue;
     }
-    if (candidate.pmid) {
-      identifiers.add(String(candidate.pmid));
-    }
-    if (candidate.pmcid) {
-      identifiers.add(String(candidate.pmcid).toUpperCase());
-    }
+    const pmid = normalizePMID(candidate.pmid);
+    const pmcid = normalizePMCID(candidate.pmcid);
+    if (pmid) identifiers.add(pmid);
+    if (pmcid) identifiers.add(pmcid);
   }
   return identifiers;
 }
@@ -199,47 +199,12 @@ function recordIsMDPI(record: any): boolean {
   );
 }
 
-export function ncbiLookupEnabled(): boolean {
-  try {
-    return (
-      Zotero.Prefs.get(`${config.prefsPrefix}.ncbiApiEnabled`, true) !== false
-    );
-  } catch (_error) {
-    return false;
-  }
-}
-
 async function fetchNCBIBatch(
   ids: string[],
   idType: NCBIIdType,
 ): Promise<any[] | undefined> {
-  if (!ncbiLookupEnabled()) {
-    return undefined;
-  }
-
-  const url = new URL(NCBI_ID_CONVERTER);
-  url.searchParams.set("ids", ids.join(","));
-  url.searchParams.set("idtype", idType);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("versions", "no");
-  url.searchParams.set("tool", "MDPIFilterZotero");
-
-  try {
-    const response = await (Zotero.HTTP as any).request("GET", url.toString(), {
-      anon: true,
-      errorDelayMax: 0,
-      responseType: "json",
-      successCodes: [200],
-      timeout: NCBI_TIMEOUT_MS,
-    });
-    const data =
-      response.response ||
-      (response.responseText ? JSON.parse(response.responseText) : undefined);
-    return Array.isArray(data?.records) ? data.records : [];
-  } catch (error) {
-    logError(error);
-    return undefined;
-  }
+  const result = await fetchNCBIRecords(ids, idType);
+  return result.status === "ok" ? result.records : undefined;
 }
 
 async function resolveNCBIIds(
