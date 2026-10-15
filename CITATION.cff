@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: >-
+  Please cite the archived release corresponding to the version you used.
+  Zenodo release archives will be linked from the repository when available.
+type: software
+title: "Notandia for Zotero: publisher detection and verified reference highlighting"
+authors:
+  - family-names: Marcolongo
+    given-names: Mario
+    orcid: "https://orcid.org/0000-0003-2846-7115"
+abstract: >-
+  Notandia for Zotero identifies MDPI publications in Zotero libraries and detects verified MDPI references in reader documents using structured identifiers and metadata. Citation highlighting requires an exact reference label and a verified PDF location; ambiguous matches are skipped. Publisher detection is not an article-quality score. This plugin is maintained separately from the Notandia browser extension. Existing third-party credits and licence notices remain applicable.
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/notandia/zotero-plugin"
+url: "https://github.com/notandia/zotero-plugin"
+keywords:
+  - Zotero
+  - research integrity
+  - reference management
+  - citation navigation
+# Version and release date are supplied by the release; omit static values here.
