@@ -46,7 +46,7 @@
     "zotero-types": "^4.0.3"
   },
   "overrides": {
-    "adm-zip": "0.6.0"
+    "adm-zip": "0.6.1"
   },
   "prettier": {
     "printWidth": 80,
