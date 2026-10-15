@@ -140,3 +140,7 @@ Please report suspected vulnerabilities privately as described in [SECURITY.md](
 ## License
 
 GNU Affero General Public License, version 3 or later.
+
+## Published software archive
+
+Version **0.2.0** is preserved on Zenodo: [release DOI](https://doi.org/10.5281/zenodo.23390663). Use this version DOI when referring to that exact release; use the [all-version DOI](https://doi.org/10.5281/zenodo.23390662) for the project across releases.
